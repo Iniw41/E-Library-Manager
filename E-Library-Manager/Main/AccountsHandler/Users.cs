@@ -4,12 +4,18 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Transactions;
+using E_Library_Manager.Styles;
+
+{
+    
+}
 
 
 // Backend Logic
 
 namespace E_Library_Manager.Main.AccountsHandler
 {
+    
     interface Ilogin
     {
         bool Login(string username, string password);
@@ -43,6 +49,7 @@ namespace E_Library_Manager.Main.AccountsHandler
 
     internal class Admin : AllUsers, Ilogin, IAccountInfo
     {
+        public string filePath = "C:\\Users\\User 103\\source\\repos\\E-Library-Manager\\E-Library-Manager\\Database\\UsersDB.txt";
         public Admin(int id, string username, string password, string fullname, int age, string email) 
             : base(id, username, password, fullname, age, email)
         { }
@@ -54,7 +61,53 @@ namespace E_Library_Manager.Main.AccountsHandler
         
         public void AddUser()
         {
-            // Code to add a new user
+            // Code to add a new standard user
+            try
+            {
+                if(!File.Exists(filePath))
+                {
+                    //someting
+                    using (StreamWriter sw = new StreamWriter(filePath))
+                    {
+                        UsersDisplayMenu.CreateNewUserMenu();
+                        while (true)
+                        {
+                            Console.SetCursorPosition(Console.WindowWidth / 2 - 10, Console.CursorTop);
+                            string newUsername = Console.ReadLine();
+                            Console.SetCursorPosition(Console.WindowWidth / 2 - 10, Console.CursorTop);
+                            string newPassword = Console.ReadLine();
+                            Console.SetCursorPosition(Console.WindowWidth / 2 - 10, Console.CursorTop);
+                            string newFullname = Console.ReadLine();
+                            Console.SetCursorPosition(Console.WindowWidth / 2 - 10, Console.CursorTop);
+                            string ageInput = Console.ReadLine();
+                            Console.SetCursorPosition(Console.WindowWidth / 2 - 10, Console.CursorTop);
+                            string newEmail = Console.ReadLine();
+                            if (int.TryParse(ageInput, out int newAge))
+                            {
+                                sw.WriteLine($"{newUsername}, {newPassword}, {newFullname}, {newAge}, {newEmail}");
+                                break;
+                            }
+                            else
+                            {
+                                StyleConsPrint.WriteCentered("Invalid age. Please enter a valid number.");
+                                Console.SetCursorPosition(Console.WindowWidth / 2 - 10, Console.CursorTop - 5);
+                            }
+                        }
+                        sw.WriteLine("NewUser, password, Fullname, Age, Email");
+                    }
+                }
+                else
+                {
+                    using (StreamWriter sw = new StreamWriter(filePath, true))
+                    {
+                        sw.WriteLine("NewUser, password, Fullname, Age, Email");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred while adding a new user: " + ex.Message);
+            }
         }
 
         public void RemoveUser()

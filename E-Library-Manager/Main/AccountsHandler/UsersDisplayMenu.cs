@@ -36,5 +36,16 @@ namespace E_Library_Manager.Main.AccountsHandler
             StyleConsPrint.WriteCentered("2. Search Books");
             StyleConsPrint.WriteCentered("3. Back to User Menu");
         }
+        public static void CreateNewUserMenu()
+        {
+            StyleConsPrint.WriteCentered("Create New User:");
+            StyleConsPrint.WriteCentered("Please enter the following details:");
+            StyleConsPrint.WriteCentered("Username:");
+            StyleConsPrint.WriteCentered("Password:");
+            StyleConsPrint.WriteCentered("Full Name:");
+            StyleConsPrint.WriteCentered("Age:");
+            StyleConsPrint.WriteCentered("Email:");
+        }
+
     }
 }
