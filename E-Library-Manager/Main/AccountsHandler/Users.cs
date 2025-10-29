@@ -67,13 +67,15 @@ namespace E_Library_Manager.Main.AccountsHandler
                 if(!File.Exists(filePath))
                 {
                     //someting
-                    using (StreamWriter sw = new StreamWriter(filePath))
+                    using (StreamWriter sw = new StreamWriter(filePath, true))
                     {
                         UsersDisplayMenu.CreateNewUserMenu();
                         while (true)
                         {
                             Console.SetCursorPosition(Console.WindowWidth / 2 - 10, Console.CursorTop);
-                            string newUsername = Console.ReadLine();
+                            string idInput = Console.ReadLine()?.Trim();
+                            Console.SetCursorPosition(Console.WindowWidth / 2 - 10, Console.CursorTop);
+                            string newUsername = Console.ReadLine()?.Trim();
                             Console.SetCursorPosition(Console.WindowWidth / 2 - 10, Console.CursorTop);
                             string newPassword = Console.ReadLine();
                             Console.SetCursorPosition(Console.WindowWidth / 2 - 10, Console.CursorTop);
@@ -84,7 +86,7 @@ namespace E_Library_Manager.Main.AccountsHandler
                             string newEmail = Console.ReadLine();
                             if (int.TryParse(ageInput, out int newAge))
                             {
-                                sw.WriteLine($"{newUsername}, {newPassword}, {newFullname}, {newAge}, {newEmail}");
+                                sw.WriteLine($"{idInput},{newUsername},{newPassword},{newFullname},{newAge},{newEmail}");
                                 break;
                             }
                             else
@@ -93,7 +95,6 @@ namespace E_Library_Manager.Main.AccountsHandler
                                 Console.SetCursorPosition(Console.WindowWidth / 2 - 10, Console.CursorTop - 5);
                             }
                         }
-                        sw.WriteLine("NewUser, password, Fullname, Age, Email");
                     }
                 }
                 else

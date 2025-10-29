@@ -40,6 +40,7 @@ namespace E_Library_Manager.Main.AccountsHandler
         {
             StyleConsPrint.WriteCentered("Create New User:");
             StyleConsPrint.WriteCentered("Please enter the following details:");
+            StyleConsPrint.WriteCentered("ID:");
             StyleConsPrint.WriteCentered("Username:");
             StyleConsPrint.WriteCentered("Password:");
             StyleConsPrint.WriteCentered("Full Name:");
