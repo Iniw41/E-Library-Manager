@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using E_Library_Manager.Styles;
 
 // Backend Logic
@@ -76,7 +77,7 @@ namespace E_Library_Manager.Main.AccountsHandler
         static string GetBorrowedDbPath()
         {
             var baseDir = AppContext.BaseDirectory;
-            var candidate = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "Database", "usersDB", "BorrowedDB.txt"));
+            var candidate = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "Database", "usersDB", "BorrowedDB.json"));
             return candidate;
         }
 
@@ -270,7 +271,7 @@ namespace E_Library_Manager.Main.AccountsHandler
                     continue;
 
                 var id = parts[0].Trim().Trim('"');
-                var datePart = parts[1].Trim().Trim('"');
+                var datePart = parts[1].Trim().Trim('"' );
 
                 if (DateTime.TryParse(datePart, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var dt))
                     dict[id] = dt.ToUniversalTime();
@@ -442,7 +443,7 @@ namespace E_Library_Manager.Main.AccountsHandler
         }
 
         // -------------------------
-        // Borrowed records helpers
+        // Borrowed records helpers (JSON-backed)
         // -------------------------
         internal class BorrowRecord
         {
@@ -452,6 +453,22 @@ namespace E_Library_Manager.Main.AccountsHandler
             public DateTime? ReturnedUtc { get; set; }
         }
 
+        // JSON model for storage
+        internal class BorrowedBookEntry
+        {
+            public string Title { get; set; }
+            public DateTime BorrowedAt { get; set; }
+            public DateTime? DueDate { get; set; }
+            public DateTime? ReturnedAt { get; set; }
+        }
+
+        internal class UserBorrowJson
+        {
+            public string UserId { get; set; }
+            public string Username { get; set; }
+            public List<BorrowedBookEntry> BorrowedBooks { get; set; } = new();
+        }
+
         internal static List<BorrowRecord> LoadBorrowedRecords()
         {
             var path = GetBorrowedDbPath();
@@ -459,34 +476,41 @@ namespace E_Library_Manager.Main.AccountsHandler
             if (!File.Exists(path))
                 return list;
 
-            foreach (var raw in File.ReadAllLines(path))
+            try
             {
-                var line = raw.Trim();
-                if (string.IsNullOrEmpty(line))
-                    continue;
+                var json = File.ReadAllText(path, Encoding.UTF8);
+                if (string.IsNullOrWhiteSpace(json))
+                    return list;
 
-                // format: userId|title|borrowedIsoUtc|returnedIsoUtcOrEmpty
-                var parts = line.Split(new[] { '|' }, 4);
-                if (parts.Length < 3) continue;
-
-                var userId = parts[0].Trim().Trim('"');
-                var title = parts[1].Trim().Trim('"');
-                if (!DateTime.TryParse(parts[2].Trim().Trim('"'), null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var borrowed))
-                    continue;
-                DateTime? returned = null;
-                if (parts.Length > 3 && !string.IsNullOrWhiteSpace(parts[3]))
+                var opts = new JsonSerializerOptions
                 {
-                    if (DateTime.TryParse(parts[3].Trim().Trim('"'), null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var r))
-                        returned = r.ToUniversalTime();
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var users = JsonSerializer.Deserialize<List<UserBorrowJson>>(json, opts);
+                if (users == null)
+                    return list;
+
+                foreach (var u in users)
+                {
+                    if (u.BorrowedBooks == null) continue;
+                    foreach (var be in u.BorrowedBooks)
+                    {
+                        // map to flat BorrowRecord used by the rest of the code
+                        list.Add(new BorrowRecord
+                        {
+                            UserId = u.UserId ?? string.Empty,
+                            Title = be.Title ?? string.Empty,
+                            BorrowedUtc = be.BorrowedAt.ToUniversalTime(),
+                            ReturnedUtc = be.ReturnedAt?.ToUniversalTime()
+                        });
+                    }
                 }
-
-                list.Add(new BorrowRecord
-                {
-                    UserId = userId,
-                    Title = title,
-                    BorrowedUtc = borrowed.ToUniversalTime(),
-                    ReturnedUtc = returned
-                });
+            }
+            catch
+            {
+                // on parse error return empty list to avoid crashing the app
+                return new List<BorrowRecord>();
             }
 
             return list;
@@ -499,14 +523,49 @@ namespace E_Library_Manager.Main.AccountsHandler
             if (!Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
 
-            using (var sw = new StreamWriter(path, false, Encoding.UTF8))
+            // group flat records into per-user JSON model
+            var grouped = records
+                .GroupBy(r => r.UserId ?? string.Empty)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            // load users to get username where available
+            var allUsers = LoadAllUsers().ToDictionary(u => u.ID, u => u.Username, StringComparer.OrdinalIgnoreCase);
+
+            var usersJson = new List<UserBorrowJson>();
+            foreach (var kv in grouped)
             {
-                foreach (var r in records)
+                var userId = kv.Key;
+                var recs = kv.Value;
+                var uj = new UserBorrowJson
                 {
-                    var returnedPart = r.ReturnedUtc.HasValue ? r.ReturnedUtc.Value.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture) : string.Empty;
-                    sw.WriteLine($"{r.UserId}|{r.Title}|{r.BorrowedUtc.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)}|{returnedPart}");
+                    UserId = userId,
+                    Username = allUsers.TryGetValue(userId, out var uname) ? uname : string.Empty,
+                    BorrowedBooks = new List<BorrowedBookEntry>()
+                };
+
+                foreach (var r in recs)
+                {
+                    var borrowedAtUtc = r.BorrowedUtc.ToUniversalTime();
+                    var due = borrowedAtUtc.AddDays(7); // example: 7-day due period
+                    uj.BorrowedBooks.Add(new BorrowedBookEntry
+                    {
+                        Title = r.Title ?? string.Empty,
+                        BorrowedAt = borrowedAtUtc,
+                        DueDate = due,
+                        ReturnedAt = r.ReturnedUtc?.ToUniversalTime()
+                    });
                 }
+
+                usersJson.Add(uj);
             }
+
+            var opts = new JsonSerializerOptions
+            {
+                WriteIndented = true
+            };
+
+            var outJson = JsonSerializer.Serialize(usersJson, opts);
+            File.WriteAllText(path, outJson, Encoding.UTF8);
         }
 
         // -------------------------
@@ -709,7 +768,7 @@ namespace E_Library_Manager.Main.AccountsHandler
             catch (Exception ex)
             {
                 Console.WriteLine("Error displaying user info: " + ex.Message);
-                Console.WriteLine("Press any key to continue...");
+                Console.WriteLine ("Press any key to continue...");
                 Console.ReadKey(true);
             }
         }
