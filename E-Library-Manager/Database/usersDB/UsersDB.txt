@@ -1,0 +1,11 @@
+﻿ID,Username,Password,Fullname,Age,Email
+1,Iniw,4145,Sample Guy,21,sampleguy@gmail.com
+2,Lykon,8231,Marco Reyes,19,marcoreyes@gmail.com
+3,Seren,9274,Alexa Cruz,22,alexacruz@gmail.com
+4,Troven,5612,Daniel Santos,24,danielsantos@gmail.com
+5,Quira,3478,Patricia Gomez,20,patgomez@gmail.com
+6,Vexin,7719,Luis Navarro,23,luisnavarro@gmail.com
+8,Kylon,9543,Brandon Uy,25,brandonuy@gmail.com
+9,Maevi,2301,Rachel Torres,22,racheltorres@gmail.com
+10,Rylen,4882,Justin Ramos,21,justinramos@gmail.com
+11,dad,120,dad user,40,dad@gmail.com

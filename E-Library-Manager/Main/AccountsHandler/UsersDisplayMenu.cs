@@ -16,24 +16,26 @@ namespace E_Library_Manager.Main.AccountsHandler
             StyleConsPrint.WriteCentered("Admin Menu:");
             StyleConsPrint.WriteCentered("1. Add User");
             StyleConsPrint.WriteCentered("2. Remove User");
-            StyleConsPrint.WriteCentered("3. View All Users");
-            StyleConsPrint.WriteCentered("4. Logout");
+            StyleConsPrint.WriteCentered("3. Ban User");
+            StyleConsPrint.WriteCentered("4. View All Users");
+            StyleConsPrint.WriteCentered("5. Logout");
         }
 
         public static void UserMenu()
         {
             StyleConsPrint.WriteCentered("User Menu:");
-            StyleConsPrint.WriteCentered("1. View Available Books");
+            StyleConsPrint.WriteCentered("1. Go to Book Menu");
             StyleConsPrint.WriteCentered("2. Borrow Book");
             StyleConsPrint.WriteCentered("3. Return Book");
-            StyleConsPrint.WriteCentered("4. Logout");
+            StyleConsPrint.WriteCentered("4. Display Info");
+            StyleConsPrint.WriteCentered("5. Logout");
         }
 
         public static void BookMenu()
         {
             StyleConsPrint.WriteCentered("Book Menu:");
-            StyleConsPrint.WriteCentered("1. View Book Details");
-            StyleConsPrint.WriteCentered("2. Search Books");
+            StyleConsPrint.WriteCentered("1. View Borrowed Book");
+            StyleConsPrint.WriteCentered("2. Read Book");
             StyleConsPrint.WriteCentered("3. Back to User Menu");
         }
         public static void CreateNewUserMenu()
