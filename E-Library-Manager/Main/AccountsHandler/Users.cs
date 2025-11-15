@@ -1,10 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using E_Library_Manager.LLM_Support;
 using E_Library_Manager.Styles;
 
 // Backend Logic
@@ -74,12 +78,86 @@ namespace E_Library_Manager.Main.AccountsHandler
             return candidate;
         }
         
-
         static string GetBorrowedDbPath()
         {
             var baseDir = AppContext.BaseDirectory;
             var candidate = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "Database", "usersDB", "BorrowedDB.json"));
             return candidate;
+        }
+        //-------------------------
+        // Sorting Books (new)
+        //-------------------------
+        // Synchronously triggers the LLMSupport conversion/sorting process.
+        // This blocks until the background conversion completes or throws.
+        public void SortBooksAutomatically(int timeoutMinutes = 10)
+        {
+            try
+            {
+                StyleConsPrint.WriteCentered("Starting automatic book sorter...");
+                Console.WriteLine("This may take a while depending on model and number of files.");
+                Console.WriteLine();
+
+                using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(timeoutMinutes));
+                // Call the LLMSupport conversion method. It is async so wait on it here.
+                LLMSupport.ConvertUnsortedBooksToJsonAsync(cts.Token).GetAwaiter().GetResult();
+
+                StyleConsPrint.WriteCentered("Book sorting finished.");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
+            catch (OperationCanceledException)
+            {
+                StyleConsPrint.WriteCentered("Sorting cancelled (timeout or user cancellation).");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error while sorting books: {ex.Message}");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
+        }
+
+        // Shows list of files currently in the project's UnsortedBooks folder.
+        public void ViewUnsortedBooks()
+        {
+            try
+            {
+                var baseDir = AppContext.BaseDirectory;
+                var unsortedDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "UnsortedBooks"));
+                Directory.CreateDirectory(unsortedDir);
+
+                Console.Clear();
+                StyleConsPrint.WriteCentered("Unsorted Books");
+
+                var files = Directory.EnumerateFiles(unsortedDir, "*.txt", SearchOption.TopDirectoryOnly)
+                                     .Select(Path.GetFileName)
+                                     .ToList();
+
+                if (files.Count == 0)
+                {
+                    StyleConsPrint.WriteCentered("No files found in UnsortedBooks.");
+                    Console.WriteLine("Press any key to return...");
+                    Console.ReadKey(true);
+                    return;
+                }
+
+                for (int i = 0; i < files.Count; i++)
+                {
+                    Console.WriteLine($"{i + 1}. {files[i]}");
+                }
+
+                Console.WriteLine();
+                Console.WriteLine("Press any key to return...");
+                Console.ReadKey(true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error listing UnsortedBooks: {ex.Message}");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
         }
 
         // -------------------------
