@@ -296,6 +296,18 @@ namespace E_Library_Manager.Main
 
                     case ConsoleKey.D5:
                     case ConsoleKey.NumPad5:
+                        Console.Clear();
+                        admin.ViewUnsortedBooks();
+                        Console.ReadKey(true);
+                        break;
+
+                    case ConsoleKey.D6:
+                    case ConsoleKey.NumPad6:
+                        Console.Clear();
+                        admin.SortBooksAutomatically();
+                        Console.ReadKey(true);
+                        break;
+
                     case ConsoleKey.Escape:
                         // Logout -> return to main menu
                         return;

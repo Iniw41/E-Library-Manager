@@ -160,6 +160,95 @@ namespace E_Library_Manager.Main.AccountsHandler
             }
         }
 
+        // Converts all .txt files in the UnloadedBooks folder into JSON documents
+        // using the required structure and writes them to the UnsortedBooks folder.
+        // Each .txt file becomes a .json file with the same base name; the original .txt is removed.
+        public void ConvertFilesTOJson()
+        {
+            try
+            {
+                var baseDir = AppContext.BaseDirectory;
+                var inputDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "UnloadedBooks"));
+                var outputDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "UnsortedBooks"));
+
+                Directory.CreateDirectory(inputDir);
+                Directory.CreateDirectory(outputDir);
+
+                Console.Clear();
+                StyleConsPrint.WriteCentered("Convert UnloadedBooks -> JSON");
+                var files = Directory.EnumerateFiles(inputDir, "*.txt", SearchOption.TopDirectoryOnly).ToList();
+
+                if (files.Count == 0)
+                {
+                    StyleConsPrint.WriteCentered("No .txt files found in UnloadedBooks.");
+                    Console.WriteLine("Press any key to return...");
+                    Console.ReadKey(true);
+                    return;
+                }
+
+                foreach (var file in files)
+                {
+                    try
+                    {
+                        var text = File.ReadAllText(file, Encoding.UTF8);
+                        // Build JSON object according to requested schema
+                        var jsonObj = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["Title"] = Path.GetFileNameWithoutExtension(file), // infer from filename
+                            ["Author"] = "unknown",
+                            ["Category"] = "Fiction",
+                            ["Genre"] = "One of: Fantasy, ScienceFiction, Mystery, Romance, Horror, Historical, Dystopian, Adventure",
+                            ["BuyPrice"] = "1200.00",
+                            ["RentPrice"] = "200",
+                            ["Content"] = new[] { text }
+                        };
+
+                        var opts = new JsonSerializerOptions { WriteIndented = true };
+                        var json = JsonSerializer.Serialize(jsonObj, opts);
+
+                        var destFileName = Path.GetFileNameWithoutExtension(file) + ".json";
+                        var destPath = GetUniqueDestinationFile(outputDir, destFileName);
+
+                        File.WriteAllText(destPath, json, Encoding.UTF8);
+
+                        // remove original text file
+                        File.Delete(file);
+
+                        Console.WriteLine($"Converted: {Path.GetFileName(file)} -> {Path.GetFileName(destPath)}");
+                    }
+                    catch (Exception exFile)
+                    {
+                        Console.WriteLine($"Failed converting '{Path.GetFileName(file)}': {exFile.Message}");
+                    }
+                }
+
+                StyleConsPrint.WriteCentered("Conversion complete.");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error converting files: {ex.Message}");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
+        }
+
+        // helper that ensures unique filename in a directory
+        private static string GetUniqueDestinationFile(string directory, string filename)
+        {
+            var dest = Path.Combine(directory, filename);
+            if (!File.Exists(dest)) return dest;
+
+            var name = Path.GetFileNameWithoutExtension(filename);
+            var ext = Path.GetExtension(filename);
+            for (int i = 1; ; i++)
+            {
+                var candidate = Path.Combine(directory, $"{name} ({i}){ext}");
+                if (!File.Exists(candidate)) return candidate;
+            }
+        }
+
         // -------------------------
         // AddUser (kept; unchanged in behavior)
         // -------------------------

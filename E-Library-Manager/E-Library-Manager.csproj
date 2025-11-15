@@ -11,6 +11,7 @@
   <ItemGroup>
     <Folder Include="Database\BooksDB\Fiction\" />
     <Folder Include="Database\BooksDB\NonFiction\" />
+    <Folder Include="UnsortedBooks\" />
   </ItemGroup>
 
   <ItemGroup>
