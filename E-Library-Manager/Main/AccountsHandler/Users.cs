@@ -73,6 +73,7 @@ namespace E_Library_Manager.Main.AccountsHandler
             var candidate = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "Database", "BooksDB"));
             return candidate;
         }
+        
 
         static string GetBorrowedDbPath()
         {
