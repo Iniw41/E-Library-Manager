@@ -782,11 +782,14 @@ namespace E_Library_Manager.Main.AccountsHandler
 
     internal class StandardUser : AllUsers, Ilogin, IAccountInfo
     {
+        public float Credit { get; set; }
         private const int MaxConcurrentBorrowed = 5;
 
-        public StandardUser(string id, string username, string password, string fullname, int age, string email)
+        public StandardUser(string id, string username, string password, string fullname, int age, string email, float credit)
             : base(id, username, password, fullname, age, email)
-        { }
+        {
+            Credit = credit;
+        }
         public bool Login(string username, string password)
         {
             return Username == username && Password == password;
@@ -942,6 +945,10 @@ namespace E_Library_Manager.Main.AccountsHandler
         public void ShowTopBookCompleationists()
         {
             // Code to show top book completions
+        }
+        public void addCredit(float amount)
+        {
+            Credit += amount;
         }
     }
 }

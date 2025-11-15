@@ -54,7 +54,7 @@ namespace E_Library_Manager.Main.BookHandler
         Horror,
         Historical,
         Dystopian,
-        Adventure,
+        Adventure,wha
     }
     public enum NonFictionSubCategory
     {

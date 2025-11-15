@@ -22,7 +22,6 @@
     <Folder Include="Database\BooksDB\NonFiction\Science\" />
     <Folder Include="Database\BooksDB\NonFiction\Politics\" />
     <Folder Include="Database\BooksDB\NonFiction\Philosophy\" />
-    <Folder Include="UnsortedBooks\" />
   </ItemGroup>
 
 </Project>

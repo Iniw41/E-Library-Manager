@@ -30,14 +30,6 @@ namespace E_Library_Manager.Main.AccountsHandler
             StyleConsPrint.WriteCentered("4. Display Info");
             StyleConsPrint.WriteCentered("Esc. Logout");
         }
-
-        public static void BookMenu()
-        {
-            StyleConsPrint.WriteCentered("Book Menu:");
-            StyleConsPrint.WriteCentered("1. View Borrowed Book");
-            StyleConsPrint.WriteCentered("2. Read Book");
-            StyleConsPrint.WriteCentered("3. Back to User Menu");
-        }
         public static void CreateNewUserMenu()
         {
             StyleConsPrint.WriteCentered("Create New User:");
