@@ -18,6 +18,8 @@ namespace E_Library_Manager.Main.AccountsHandler
             StyleConsPrint.WriteCentered("2. Remove User");
             StyleConsPrint.WriteCentered("3. Ban User");
             StyleConsPrint.WriteCentered("4. View All Users");
+            StyleConsPrint.WriteCentered("5. View Unsorted Books");
+            StyleConsPrint.WriteCentered("6. Sort The Books Automatically");
             StyleConsPrint.WriteCentered("Esc. Logout");
         }
 

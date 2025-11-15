@@ -9,19 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Database\BooksDB\Fiction\Fantasy\" />
-    <Folder Include="Database\BooksDB\Fiction\Mystery\" />
-    <Folder Include="Database\BooksDB\Fiction\Horror\" />
-    <Folder Include="Database\BooksDB\Fiction\Historical\" />
-    <Folder Include="Database\BooksDB\Fiction\Dystopian\" />
-    <Folder Include="Database\BooksDB\Fiction\Adventure\" />
-    <Folder Include="Database\BooksDB\Fiction\Romance\" />
-    <Folder Include="Database\BooksDB\Fiction\SciFi\" />
-    <Folder Include="Database\BooksDB\NonFiction\History\" />
-    <Folder Include="Database\BooksDB\NonFiction\Math\" />
-    <Folder Include="Database\BooksDB\NonFiction\Science\" />
-    <Folder Include="Database\BooksDB\NonFiction\Politics\" />
-    <Folder Include="Database\BooksDB\NonFiction\Philosophy\" />
+    <Folder Include="Database\BooksDB\Fiction\" />
+    <Folder Include="Database\BooksDB\NonFiction\" />
   </ItemGroup>
 
   <ItemGroup>
