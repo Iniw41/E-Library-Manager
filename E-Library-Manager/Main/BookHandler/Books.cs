@@ -12,20 +12,22 @@ namespace E_Library_Manager.Main.BookHandler
         public string Title { get; set; }
         public string Author { get; set; }
         public string Category { get; set; }
-        public float Price { get; set; }
+        public float BuyPrice { get; set; }
+        public float RentPrice { get; set; }
 
-        public Books(string title, string author, string category, float price)
+        public Books(string title, string author, string category, float buyprice, float rentprice)
         {
             Title = title;
             Author = author;
             Category = category;
-            Price = price;
+            BuyPrice = buyprice;
+            RentPrice = rentprice;
         }
     }
     internal class NonFiction : Books
     {
         public string SubCategory { get; set; }
-        public NonFiction(string title, string author, string category, float price, string subCategory) : base(title, author, category, price)
+        public NonFiction(string title, string author, string category, float buyprice,float rentprice, string subCategory) : base(title, author, category, buyprice, rentprice)
         {
             SubCategory = subCategory;
 
@@ -35,7 +37,7 @@ namespace E_Library_Manager.Main.BookHandler
     internal class Fiction : Books
     {
         public string Genre { get; set; }
-        public Fiction(string title, string author, string category, float price, string genre) : base(title, author, category, price)
+        public Fiction(string title, string author, string category, float buyprice, float rentprice, string genre) : base(title, author, category, buyprice, rentprice)
         {
             Genre = genre;
         }

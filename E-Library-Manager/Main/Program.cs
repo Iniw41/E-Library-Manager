@@ -202,8 +202,9 @@ namespace E_Library_Manager.Main
                             int age = 0;
                             if (tokens.Length > 4) int.TryParse(tokens[4], out age);
                             string email = tokens.Length > 5 ? tokens[5] : string.Empty;
+                            float credit = 0.0f;
 
-                            return new StandardUser(id, fileUsername, filePassword, fullname, age, email);
+                            return new StandardUser(id, fileUsername, filePassword, fullname, age, email, credit);
                         }
                     }
                     else
@@ -230,8 +231,9 @@ namespace E_Library_Manager.Main
                             int age = 0;
                             if (tokens.Length > 4) int.TryParse(tokens[4], out age);
                             string email = tokens.Length > 5 ? tokens[5] : string.Empty;
+                            float credit = 0.0f;
 
-                            return new StandardUser(fileId, fileUsername, filePassword, fullname, age, email);
+                            return new StandardUser(fileId, fileUsername, filePassword, fullname, age, email, credit);
                         }
                     }
                 }
