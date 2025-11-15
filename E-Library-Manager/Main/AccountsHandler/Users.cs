@@ -805,7 +805,7 @@ namespace E_Library_Manager.Main.AccountsHandler
             Console.ReadKey(true);
         }
 
-        public void BorrowBook()
+        public void CheckoutBook()
         {
             try
             {

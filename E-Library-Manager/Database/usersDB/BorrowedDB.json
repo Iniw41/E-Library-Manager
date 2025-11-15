@@ -1,1 +1,38 @@
-﻿
+﻿[
+  {
+    "UserId": "1",
+    "Username": "Iniw",
+    "BorrowedBooks": [
+      {
+        "Title": "Twin Lust",
+        "BorrowedAt": "2025-11-12T11:42:00.1253578Z",
+        "DueDate": "2025-11-19T11:42:00.1253578Z",
+        "ReturnedAt": null
+      },
+      {
+        "Title": "A Crazy Love Story",
+        "BorrowedAt": "2025-11-12T11:43:50.7860346Z",
+        "DueDate": "2025-11-19T11:43:50.7860346Z",
+        "ReturnedAt": null
+      },
+      {
+        "Title": "That Girl 1",
+        "BorrowedAt": "2025-11-12T15:51:23.2249352Z",
+        "DueDate": "2025-11-19T15:51:23.2249352Z",
+        "ReturnedAt": null
+      }
+    ]
+  },
+  {
+    "UserId": "11",
+    "Username": "dad",
+    "BorrowedBooks": [
+      {
+        "Title": "Your Life With Exo",
+        "BorrowedAt": "2025-11-12T11:45:07.2574559Z",
+        "DueDate": "2025-11-19T11:45:07.2574559Z",
+        "ReturnedAt": null
+      }
+    ]
+  }
+]

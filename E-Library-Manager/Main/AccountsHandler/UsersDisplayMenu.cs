@@ -18,7 +18,7 @@ namespace E_Library_Manager.Main.AccountsHandler
             StyleConsPrint.WriteCentered("2. Remove User");
             StyleConsPrint.WriteCentered("3. Ban User");
             StyleConsPrint.WriteCentered("4. View All Users");
-            StyleConsPrint.WriteCentered("5. Logout");
+            StyleConsPrint.WriteCentered("Esc. Logout");
         }
 
         public static void UserMenu()
@@ -28,7 +28,7 @@ namespace E_Library_Manager.Main.AccountsHandler
             StyleConsPrint.WriteCentered("2. Borrow Book");
             StyleConsPrint.WriteCentered("3. Return Book");
             StyleConsPrint.WriteCentered("4. Display Info");
-            StyleConsPrint.WriteCentered("5. Logout");
+            StyleConsPrint.WriteCentered("Esc. Logout");
         }
 
         public static void BookMenu()

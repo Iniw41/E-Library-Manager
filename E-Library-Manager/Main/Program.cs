@@ -328,7 +328,7 @@ namespace E_Library_Manager.Main
                     case ConsoleKey.D2:
                     case ConsoleKey.NumPad2:
                         Console.Clear();
-                        user.BorrowBook();
+                        user.CheckoutBook();
                         Console.ReadKey(true);
                         break;
 
