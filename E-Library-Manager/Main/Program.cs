@@ -307,13 +307,27 @@ namespace E_Library_Manager.Main
                         admin.SortBooksAutomatically();
                         Console.ReadKey(true);
                         break;
+
                     case ConsoleKey.D7:
                     case ConsoleKey.NumPad7:
+                        Console.Clear();
+                        admin.SortBooksManually();
+                        Console.ReadKey(true);
+                        break;
+
+                    case ConsoleKey.D8:
+                    case ConsoleKey.NumPad8:
                         Console.Clear();
                         admin.ConvertFilesTOJson();
                         Console.ReadKey(true);
                         break;
 
+                    case ConsoleKey.H:
+                        Console.Clear();
+                        UsersDisplayMenu.HelpAdminMenu();
+                        Console.WriteLine("Press any key to return to Admin Menu...");
+                        Console.ReadKey(true);
+                        break;
                     case ConsoleKey.Escape:
                         // Logout -> return to main menu
                         return;

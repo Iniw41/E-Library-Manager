@@ -89,6 +89,284 @@ namespace E_Library_Manager.Main.AccountsHandler
         //-------------------------
         // Sorting Books (new)
         //-------------------------
+        public void SortBooksManually()
+        {
+            while (true)
+            {
+                Console.Clear();
+                BooksDisplayMenu.SelectBookCategoryMenu();
+                var key = Console.ReadKey(true);
+
+                switch (key.Key)
+                {
+                    case ConsoleKey.D1:
+                    case ConsoleKey.NumPad1:
+                        // Fiction
+                        // Show list then allow selection & genre assignment
+                        ViewUnsortedBooks();
+                        AddGenreToBook();
+                        break;
+
+                    case ConsoleKey.D2:
+                    case ConsoleKey.NumPad2:
+                        // Non-Fiction
+                        ViewUnsortedBooks();
+                        AddSubCategoryToBook();
+                        break;
+
+                    case ConsoleKey.Escape:
+                        return;
+                    
+                    default:
+                        break;
+                }
+
+            }
+        }
+
+        public void AddSubCategoryToBook()
+        {
+            try
+            {
+                // Let user select a file
+                var filePath = SelectUnsortedBook();
+                if (string.IsNullOrEmpty(filePath)) return;
+
+                // show subcategory choices (reuse display helper if desired)
+                Console.Clear();
+                BooksDisplayMenu.SelectBookSubCategoryMenu();
+                Console.WriteLine();
+                Console.Write("Choose SubCategory (press corresponding number): ");
+                var key = Console.ReadKey(true);
+
+                string chosen = null;
+                switch (key.Key)
+                {
+                    case ConsoleKey.D1:
+                    case ConsoleKey.NumPad1:
+                        chosen = "History";
+                        break;
+                    case ConsoleKey.D2:
+                    case ConsoleKey.NumPad2:
+                        chosen = "Politics";
+                        break;
+                    case ConsoleKey.D3:
+                    case ConsoleKey.NumPad3:
+                        chosen = "Philosophy";
+                        break;
+                    case ConsoleKey.D4:
+                    case ConsoleKey.NumPad4:
+                        chosen = "Math";
+                        break;
+                    case ConsoleKey.D5:
+                    case ConsoleKey.NumPad5:
+                        chosen = "Science";
+                        break;
+                    case ConsoleKey.Escape:
+                        return;
+                    default:
+                        Console.WriteLine("Invalid selection. Operation cancelled.");
+                        Console.WriteLine("Press any key to continue...");
+                        Console.ReadKey(true);
+                        return;
+                }
+
+                // Read original JSON and preserve content and other fields
+                var json = File.ReadAllText(filePath, Encoding.UTF8);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                string title = root.TryGetProperty("Title", out var pTitle) ? pTitle.GetString() ?? Path.GetFileNameWithoutExtension(filePath) : Path.GetFileNameWithoutExtension(filePath);
+                string author = root.TryGetProperty("Author", out var pAuthor) ? pAuthor.GetString() ?? "unknown" : "unknown";
+                string buy = root.TryGetProperty("BuyPrice", out var pBuy) ? pBuy.GetString() ?? "0.00" : "0.00";
+                string rent = root.TryGetProperty("RentPrice", out var pRent) ? pRent.GetString() ?? "0" : "0";
+
+                string[] contentLines = Array.Empty<string>();
+                if (root.TryGetProperty("Content", out var pContent) && pContent.ValueKind == JsonValueKind.Array)
+                {
+                    contentLines = pContent.EnumerateArray().Select(e => e.GetString() ?? string.Empty).ToArray();
+                }
+                else if (root.TryGetProperty("Content", out pContent) && pContent.ValueKind == JsonValueKind.String)
+                {
+                    var text = pContent.GetString() ?? string.Empty;
+                    var normalized = text.Replace("\r\n", "\n").Replace("\r", "\n");
+                    contentLines = normalized.Split('\n');
+                }
+
+                // Build new JSON with SubCategory and Category = NonFiction
+                var outDict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Title"] = title,
+                    ["Author"] = author,
+                    ["Category"] = "NonFiction",
+                    ["SubCategory"] = chosen,
+                    ["BuyPrice"] = buy,
+                    ["RentPrice"] = rent,
+                    ["Content"] = contentLines
+                };
+
+                var opts = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                };
+
+                var outJson = JsonSerializer.Serialize(outDict, opts);
+
+                // Destination folder: Database/BooksDB/NonFiction
+                var booksRoot = GetBooksPath();
+                var destDir = Path.Combine(booksRoot, "NonFiction");
+                Directory.CreateDirectory(destDir);
+
+                var destPath = GetUniqueDestinationFile(destDir, Path.GetFileName(filePath));
+                File.WriteAllText(destPath, outJson, Encoding.UTF8);
+
+                // remove original file if different
+                if (!string.Equals(Path.GetFullPath(destPath), Path.GetFullPath(filePath), StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Delete(filePath);
+                }
+
+                StyleConsPrint.WriteCentered($"Assigned SubCategory '{chosen}' and moved to NonFiction.");
+                Console.WriteLine($"File: {Path.GetFileName(destPath)}");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in AddSubCategoryToBook: {ex.Message}");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
+        }
+
+        public void AddGenreToBook()
+        {
+            try
+            {
+                // Let user select a file
+                var filePath = SelectUnsortedBook();
+                if (string.IsNullOrEmpty(filePath)) return;
+
+                // show genre choices
+                Console.Clear();
+                BooksDisplayMenu.SelectBookGenreMenu();
+                Console.WriteLine();
+                Console.Write("Choose Genre (press corresponding number): ");
+                var key = Console.ReadKey(true);
+
+                string chosen = null;
+                switch (key.Key)
+                {
+                    case ConsoleKey.D1:
+                    case ConsoleKey.NumPad1:
+                        chosen = "Fantasy";
+                        break;
+                    case ConsoleKey.D2:
+                    case ConsoleKey.NumPad2:
+                        chosen = "ScienceFiction";
+                        break;
+                    case ConsoleKey.D3:
+                    case ConsoleKey.NumPad3:
+                        chosen = "Mystery";
+                        break;
+                    case ConsoleKey.D4:
+                    case ConsoleKey.NumPad4:
+                        chosen = "Romance";
+                        break;
+                    case ConsoleKey.D5:
+                    case ConsoleKey.NumPad5:
+                        chosen = "Horror";
+                        break;
+                    case ConsoleKey.D6:
+                    case ConsoleKey.NumPad6:
+                        chosen = "Historical";
+                        break;
+                    case ConsoleKey.D7:
+                    case ConsoleKey.NumPad7:
+                        chosen = "Dystopian";
+                        break;
+                    case ConsoleKey.D8:
+                    case ConsoleKey.NumPad8:
+                        chosen = "Adventure";
+                        break;
+                    case ConsoleKey.Escape:
+                        return;
+                    default:
+                        Console.WriteLine("Invalid selection. Operation cancelled.");
+                        Console.WriteLine("Press any key to continue...");
+                        Console.ReadKey(true);
+                        return;
+                }
+
+                // Read original JSON and preserve content and other fields
+                var json = File.ReadAllText(filePath, Encoding.UTF8);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                string title = root.TryGetProperty("Title", out var pTitle) ? pTitle.GetString() ?? Path.GetFileNameWithoutExtension(filePath) : Path.GetFileNameWithoutExtension(filePath);
+                string author = root.TryGetProperty("Author", out var pAuthor) ? pAuthor.GetString() ?? "unknown" : "unknown";
+                string buy = root.TryGetProperty("BuyPrice", out var pBuy) ? pBuy.GetString() ?? "0.00" : "0.00";
+                string rent = root.TryGetProperty("RentPrice", out var pRent) ? pRent.GetString() ?? "0" : "0";
+
+                string[] contentLines = Array.Empty<string>();
+                if (root.TryGetProperty("Content", out var pContent) && pContent.ValueKind == JsonValueKind.Array)
+                {
+                    contentLines = pContent.EnumerateArray().Select(e => e.GetString() ?? string.Empty).ToArray();
+                }
+                else if (root.TryGetProperty("Content", out pContent) && pContent.ValueKind == JsonValueKind.String)
+                {
+                    var text = pContent.GetString() ?? string.Empty;
+                    var normalized = text.Replace("\r\n", "\n").Replace("\r", "\n");
+                    contentLines = normalized.Split('\n');
+                }
+
+                // Build new JSON with Genre and Category = Fiction
+                var outDict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Title"] = title,
+                    ["Author"] = author,
+                    ["Category"] = "Fiction",
+                    ["Genre"] = chosen,
+                    ["BuyPrice"] = buy,
+                    ["RentPrice"] = rent,
+                    ["Content"] = contentLines
+                };
+
+                var opts = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                };
+
+                var outJson = JsonSerializer.Serialize(outDict, opts);
+
+                // Destination folder: Database/BooksDB/Fiction
+                var booksRoot = GetBooksPath();
+                var destDir = Path.Combine(booksRoot, "Fiction");
+                Directory.CreateDirectory(destDir);
+
+                var destPath = GetUniqueDestinationFile(destDir, Path.GetFileName(filePath));
+                File.WriteAllText(destPath, outJson, Encoding.UTF8);
+
+                // remove original file if different
+                if (!string.Equals(Path.GetFullPath(destPath), Path.GetFullPath(filePath), StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Delete(filePath);
+                }
+
+                StyleConsPrint.WriteCentered($"Assigned Genre '{chosen}' and moved to Fiction.");
+                Console.WriteLine($"File: {Path.GetFileName(destPath)}");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in AddGenreToBook: {ex.Message}");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
+        }
         // Synchronously triggers the LLMSupport conversion/sorting process.
         // This blocks until the background conversion completes or throws.
         public void SortBooksAutomatically(int timeoutMinutes = 10)
@@ -127,6 +405,9 @@ namespace E_Library_Manager.Main.AccountsHandler
             while (true)
             {
                 Console.Clear();
+                Console.SetBufferSize(Console.WindowWidth, Console.WindowHeight);
+                Console.SetCursorPosition(0, 0);
+
                 UsersDisplayMenu.ViewUnsortedBooksMenu();
                 
                 var key = Console.ReadKey(true);
@@ -158,6 +439,8 @@ namespace E_Library_Manager.Main.AccountsHandler
                 Directory.CreateDirectory(unsortedDir);
 
                 Console.Clear();
+                Console.SetBufferSize(Console.WindowWidth, Console.WindowHeight);
+                Console.SetCursorPosition(0, 0);
                 StyleConsPrint.WriteCentered("Unsorted Books");
 
                 var files = Directory.EnumerateFiles(unsortedDir, "*.json", SearchOption.TopDirectoryOnly)
@@ -233,8 +516,7 @@ namespace E_Library_Manager.Main.AccountsHandler
                         {
                             ["Title"] = Path.GetFileNameWithoutExtension(file), // infer from filename
                             ["Author"] = "unknown",
-                            ["Category"] = "Fiction",
-                            ["Genre"] = "One of: Fantasy, ScienceFiction, Mystery, Romance, Horror, Historical, Dystopian, Adventure",
+                            ["Category"] = "",
                             ["BuyPrice"] = "1200.00",
                             ["RentPrice"] = "200",
                             ["Content"] = lines
@@ -1091,32 +1373,6 @@ namespace E_Library_Manager.Main.AccountsHandler
                     Console.WriteLine("Invalid category. Please type Fiction or NonFiction.");
                 }
 
-                // Genre or SubCategory depending on category
-                string newGenre = curGenre;
-                string newSubCategory = curSubCategory;
-                if (newCategory == "Fiction")
-                {
-                    // Offer Genre
-                    var current = !string.IsNullOrEmpty(curGenre) ? curGenre : curSubCategory;
-                    Console.WriteLine($"Current Genre: {current}");
-                    Console.Write("New Genre (Enter = keep): ");
-                    var g = (Console.ReadLine() ?? "").Trim();
-                    if (!string.IsNullOrEmpty(g)) newGenre = g;
-                    // clear subcategory
-                    newSubCategory = null;
-                }
-                else
-                {
-                    // Offer SubCategory
-                    var current = !string.IsNullOrEmpty(curSubCategory) ? curSubCategory : curGenre;
-                    Console.WriteLine($"Current SubCategory: {current}");
-                    Console.Write("New SubCategory (Enter = keep): ");
-                    var s = (Console.ReadLine() ?? "").Trim();
-                    if (!string.IsNullOrEmpty(s)) newSubCategory = s;
-                    // clear genre
-                    newGenre = null;
-                }
-
                 // BuyPrice
                 Console.WriteLine($"Current BuyPrice: {curBuy}");
                 string newBuy;
@@ -1167,18 +1423,6 @@ namespace E_Library_Manager.Main.AccountsHandler
                     ["RentPrice"] = newRent,
                     ["Content"] = contentLines
                 };
-
-                if (newCategory == "Fiction")
-                {
-                    outDict["Genre"] = newGenre ?? "";
-                    // ensure SubCategory is not present
-                }
-                else
-                {
-                    outDict["SubCategory"] = newSubCategory ?? "";
-                    // ensure Genre is not present
-                }
-
                 var opts = new JsonSerializerOptions
                 {
                     WriteIndented = true,
@@ -1241,6 +1485,9 @@ namespace E_Library_Manager.Main.AccountsHandler
                 Console.WriteLine();
                 Console.WriteLine("Press any key to return...");
                 Console.ReadKey(true);
+                Console.Clear();
+                Console.SetBufferSize(Console.WindowWidth, Console.WindowHeight);
+                Console.SetCursorPosition(0, 0);
             }
             catch (Exception ex)
             {

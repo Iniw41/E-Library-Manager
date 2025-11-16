@@ -31,7 +31,7 @@ namespace E_Library_Manager.Main.BookHandler
             StyleConsPrint.WriteCentered("Select Book Category:");
             StyleConsPrint.WriteCentered("1. Fiction");
             StyleConsPrint.WriteCentered("2. Non-Fiction");
-            StyleConsPrint.WriteCentered("Esc. Back to View Book Menu");
+            StyleConsPrint.WriteCentered("Esc. Go Back");
         }
         public static void SelectBookSubCategoryMenu()
         {
@@ -41,7 +41,7 @@ namespace E_Library_Manager.Main.BookHandler
             StyleConsPrint.WriteCentered("3. Philosophy");
             StyleConsPrint.WriteCentered("4. Math");
             StyleConsPrint.WriteCentered("5. Science");
-            StyleConsPrint.WriteCentered("Esc. Back to Select Book Category Menu");
+            StyleConsPrint.WriteCentered("Esc. Go Back");
         }
         public static void SelectBookGenreMenu()
         {
@@ -54,7 +54,7 @@ namespace E_Library_Manager.Main.BookHandler
             StyleConsPrint.WriteCentered("6. Historical");
             StyleConsPrint.WriteCentered("7. Dystopian");
             StyleConsPrint.WriteCentered("8. Adventure");
-            StyleConsPrint.WriteCentered("Esc. Back to Select Book Category Menu");
+            StyleConsPrint.WriteCentered("Esc. Go Back");
         }
     }
 }

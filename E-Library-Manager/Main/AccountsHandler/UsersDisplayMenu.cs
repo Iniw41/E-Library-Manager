@@ -19,10 +19,31 @@ namespace E_Library_Manager.Main.AccountsHandler
             StyleConsPrint.WriteCentered("2. Remove User");
             StyleConsPrint.WriteCentered("3. Ban User");
             StyleConsPrint.WriteCentered("4. View All Users");
-            StyleConsPrint.WriteCentered("5. View Unsorted Books");
+            StyleConsPrint.WriteCentered("5. Verify Books Info");
             StyleConsPrint.WriteCentered("6. Sort The Books Automatically");
-            StyleConsPrint.WriteCentered("7. Convert Unloaded books into sortable Format Automatically");
+            StyleConsPrint.WriteCentered("7. Sort The Books Manually");
+            StyleConsPrint.WriteCentered("8. Convert Unloaded books into sortable Format Automatically");
+            StyleConsPrint.WriteCentered("H. Help info for all options");
             StyleConsPrint.WriteCentered("Esc. Logout");
+        }
+
+        public static void HelpAdminMenu()
+        {
+            StyleConsPrint.WriteCentered("Help - Admin Menu:");
+            Console.WriteLine("1. Add User - Create a new user account.");
+            Console.WriteLine("2. Remove User - Delete an existing user account.");
+            Console.WriteLine("3. Ban User - Restrict a user from accessing their account.");
+            Console.WriteLine("4. View All Users - Display a list of all registered users.");
+            Console.WriteLine("------------------------------------------------");
+            Console.WriteLine("Admin Book Management Options:");
+            Console.WriteLine("This step is the must be the 2nd step you do after converting all the files into json, so  you can add and the author and change the pricing of the books");
+            Console.WriteLine("5. Verify Books Info - Check and validate book information and change the book information you can also read the content of the books before sorting.");
+            Console.WriteLine("6. Sort The Books Automatically - Organize books using an LLM model (SrEgg) Caution Not recomended the model still need more data");
+            Console.WriteLine("7. Sort The Books Manually -  Organize the boook by you the Librarian");
+            Console.WriteLine("   -In making the Books sortable You are required to do this step first.");
+            Console.WriteLine("8. Convert Unloaded books into sortable Format Automatically - Converts the books into from txt to a json file so it can be sorted (requred to do this first)");
+            Console.WriteLine("H. Help info for all options - Display this help information.");
+            Console.WriteLine("Esc. Logout - Exit the admin menu and log out.");
         }
         public static void ViewUnsortedBooksMenu()
         {
@@ -31,6 +52,7 @@ namespace E_Library_Manager.Main.AccountsHandler
             StyleConsPrint.WriteCentered("2. Read The Content");
             StyleConsPrint.WriteCentered("Esc. Go Back");
         }
+
         public static void ViewAllUsersMenu()
         {
             StyleConsPrint.WriteCentered("View All Users:");
