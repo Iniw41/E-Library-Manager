@@ -297,7 +297,7 @@ namespace E_Library_Manager.Main
                     case ConsoleKey.D5:
                     case ConsoleKey.NumPad5:
                         Console.Clear();
-                        admin.ViewUnsortedBooks();
+                        admin.BookMenuChecking();
                         Console.ReadKey(true);
                         break;
 
@@ -305,6 +305,12 @@ namespace E_Library_Manager.Main
                     case ConsoleKey.NumPad6:
                         Console.Clear();
                         admin.SortBooksAutomatically();
+                        Console.ReadKey(true);
+                        break;
+                    case ConsoleKey.D7:
+                    case ConsoleKey.NumPad7:
+                        Console.Clear();
+                        admin.ConvertFilesTOJson();
                         Console.ReadKey(true);
                         break;
 

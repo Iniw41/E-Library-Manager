@@ -5,11 +5,13 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using E_Library_Manager.LLM_Support;
 using E_Library_Manager.Styles;
+using E_Library_Manager.Main.BookHandler;
 
 // Backend Logic
 
@@ -120,6 +122,33 @@ namespace E_Library_Manager.Main.AccountsHandler
         }
 
         // Shows list of files currently in the project's UnsortedBooks folder.
+        public void BookMenuChecking()
+        {
+            while (true)
+            {
+                Console.Clear();
+                UsersDisplayMenu.ViewUnsortedBooksMenu();
+                
+                var key = Console.ReadKey(true);
+                switch (key.Key)
+                {
+                    case ConsoleKey.D1:
+                    case ConsoleKey.NumPad1:
+                        ViewUnsortedBooks();
+                        ChangeBooksInfo();
+                        break;
+                    case ConsoleKey.D2:
+                    case ConsoleKey.NumPad2:
+                        ViewUnsortedBooks();
+                        ReadBookForCheacking();
+                        break;
+                    case ConsoleKey.Escape:
+                        return;
+                    default:
+                        break;
+                }
+            }
+        }
         public void ViewUnsortedBooks()
         {
             try
@@ -131,7 +160,7 @@ namespace E_Library_Manager.Main.AccountsHandler
                 Console.Clear();
                 StyleConsPrint.WriteCentered("Unsorted Books");
 
-                var files = Directory.EnumerateFiles(unsortedDir, "*.txt", SearchOption.TopDirectoryOnly)
+                var files = Directory.EnumerateFiles(unsortedDir, "*.json", SearchOption.TopDirectoryOnly)
                                      .Select(Path.GetFileName)
                                      .ToList();
 
@@ -190,7 +219,15 @@ namespace E_Library_Manager.Main.AccountsHandler
                 {
                     try
                     {
-                        var text = File.ReadAllText(file, Encoding.UTF8);
+                        // read raw text
+                        var raw = File.ReadAllText(file, Encoding.UTF8);
+
+                        // normalize line endings to '\n' and split into lines.
+                        // This ensures the JSON "Content" array contains each text line as its own element
+                        // (so serialized JSON does not embed \r\n sequences inside a single string).
+                        var normalized = raw.Replace("\r\n", "\n").Replace("\r", "\n");
+                        var lines = normalized.Split('\n'); // preserve empty lines as empty strings
+
                         // Build JSON object according to requested schema
                         var jsonObj = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                         {
@@ -200,10 +237,15 @@ namespace E_Library_Manager.Main.AccountsHandler
                             ["Genre"] = "One of: Fantasy, ScienceFiction, Mystery, Romance, Horror, Historical, Dystopian, Adventure",
                             ["BuyPrice"] = "1200.00",
                             ["RentPrice"] = "200",
-                            ["Content"] = new[] { text }
+                            ["Content"] = lines
                         };
 
-                        var opts = new JsonSerializerOptions { WriteIndented = true };
+                        // Use UnsafeRelaxedJsonEscaping so unicode characters (’ etc.) are not escaped as \uXXXX.
+                        var opts = new JsonSerializerOptions
+                        {
+                            WriteIndented = true,
+                            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                        };
                         var json = JsonSerializer.Serialize(jsonObj, opts);
 
                         var destFileName = Path.GetFileNameWithoutExtension(file) + ".json";
@@ -946,6 +988,267 @@ namespace E_Library_Manager.Main.AccountsHandler
             int diff = (7 + (dt.DayOfWeek - start)) % 7;
             return dt.Date.AddDays(-1 * diff);
         }
+
+        private static string GetUnsortedBooksPath()
+        {
+            var baseDir = AppContext.BaseDirectory;
+            return Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "UnsortedBooks"));
+        }
+
+        private static string SelectUnsortedBook()
+        {
+            var unsortedPath = GetUnsortedBooksPath();
+            Directory.CreateDirectory(unsortedPath);
+
+            var files = Directory.EnumerateFiles(unsortedPath, "*.json", SearchOption.TopDirectoryOnly)
+                                 .OrderBy(Path.GetFileName)
+                                 .ToList();
+
+            if (files.Count == 0)
+            {
+                StyleConsPrint.WriteCentered("No .json files found in UnsortedBooks.");
+                Console.WriteLine("Press any key to return...");
+                Console.ReadKey(true);
+                return null;
+            }
+
+            Console.Clear();
+            StyleConsPrint.WriteCentered("Select a file from UnsortedBooks");
+            for (int i = 0; i < files.Count; i++)
+            {
+                Console.WriteLine($"{i + 1}. {Path.GetFileName(files[i])}");
+            }
+            Console.WriteLine();
+            Console.Write("Select number (0 = cancel): ");
+            var input = Console.ReadLine() ?? string.Empty;
+            if (!int.TryParse(input, out var sel) || sel < 0 || sel > files.Count)
+                return null;
+            if (sel == 0) return null;
+            return files[sel - 1];
+        }
+
+        public void ChangeBooksInfo()
+        {
+            try
+            {
+                var filePath = SelectUnsortedBook();
+                if (string.IsNullOrEmpty(filePath)) return;
+
+                var json = File.ReadAllText(filePath, Encoding.UTF8);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                // Read existing values (if missing use defaults)
+                string curTitle = root.TryGetProperty("Title", out var pTitle) ? pTitle.GetString() ?? "" : Path.GetFileNameWithoutExtension(filePath);
+                string curAuthor = root.TryGetProperty("Author", out var pAuthor) ? pAuthor.GetString() ?? "" : "unknown";
+                string curCategory = root.TryGetProperty("Category", out var pCat) ? pCat.GetString() ?? "Fiction" : "Fiction";
+
+                string curGenre = root.TryGetProperty("Genre", out var pGenre) ? pGenre.GetString() ?? "" : "";
+                string curSubCategory = root.TryGetProperty("SubCategory", out var pSub) ? pSub.GetString() ?? "" : "";
+
+                string curBuy = root.TryGetProperty("BuyPrice", out var pBuy) ? pBuy.GetString() ?? "0.00" : "0.00";
+                string curRent = root.TryGetProperty("RentPrice", out var pRent) ? pRent.GetString() ?? "0" : "0";
+
+                Console.Clear();
+                StyleConsPrint.WriteCentered("Change Book Info");
+                Console.WriteLine($"File: {Path.GetFileName(filePath)}");
+                Console.WriteLine();
+
+                // Title
+                Console.WriteLine($"Current Title : {curTitle}");
+                Console.Write("New Title (Enter = keep): ");
+                var newTitle = (Console.ReadLine() ?? "").Trim();
+                if (string.IsNullOrEmpty(newTitle)) newTitle = curTitle;
+
+                // Author
+                Console.WriteLine($"Current Author: {curAuthor}");
+                Console.Write("New Author (Enter = keep): ");
+                var newAuthor = (Console.ReadLine() ?? "").Trim();
+                if (string.IsNullOrEmpty(newAuthor)) newAuthor = curAuthor;
+
+                // Category (Fiction / NonFiction)
+                Console.WriteLine($"Current Category: {curCategory}");
+                string newCategory = null;
+                while (true)
+                {
+                    Console.Write("New Category (Fiction / NonFiction) (Enter = keep): ");
+                    var inCat = (Console.ReadLine() ?? "").Trim();
+                    if (string.IsNullOrEmpty(inCat))
+                    {
+                        newCategory = curCategory;
+                        break;
+                    }
+                    if (inCat.Equals("Fiction", StringComparison.OrdinalIgnoreCase))
+                    {
+                        newCategory = "Fiction";
+                        break;
+                    }
+                    if (inCat.Equals("NonFiction", StringComparison.OrdinalIgnoreCase) || inCat.Equals("Non-Fiction", StringComparison.OrdinalIgnoreCase))
+                    {
+                        newCategory = "NonFiction";
+                        break;
+                    }
+                    Console.WriteLine("Invalid category. Please type Fiction or NonFiction.");
+                }
+
+                // Genre or SubCategory depending on category
+                string newGenre = curGenre;
+                string newSubCategory = curSubCategory;
+                if (newCategory == "Fiction")
+                {
+                    // Offer Genre
+                    var current = !string.IsNullOrEmpty(curGenre) ? curGenre : curSubCategory;
+                    Console.WriteLine($"Current Genre: {current}");
+                    Console.Write("New Genre (Enter = keep): ");
+                    var g = (Console.ReadLine() ?? "").Trim();
+                    if (!string.IsNullOrEmpty(g)) newGenre = g;
+                    // clear subcategory
+                    newSubCategory = null;
+                }
+                else
+                {
+                    // Offer SubCategory
+                    var current = !string.IsNullOrEmpty(curSubCategory) ? curSubCategory : curGenre;
+                    Console.WriteLine($"Current SubCategory: {current}");
+                    Console.Write("New SubCategory (Enter = keep): ");
+                    var s = (Console.ReadLine() ?? "").Trim();
+                    if (!string.IsNullOrEmpty(s)) newSubCategory = s;
+                    // clear genre
+                    newGenre = null;
+                }
+
+                // BuyPrice
+                Console.WriteLine($"Current BuyPrice: {curBuy}");
+                string newBuy;
+                while (true)
+                {
+                    Console.Write("New BuyPrice (Enter = keep): ");
+                    var inBuy = (Console.ReadLine() ?? "").Trim();
+                    if (string.IsNullOrEmpty(inBuy)) { newBuy = curBuy; break; }
+                    if (decimal.TryParse(inBuy, NumberStyles.Number, CultureInfo.InvariantCulture, out var dBuy))
+                    {
+                        newBuy = dBuy.ToString("0.00", CultureInfo.InvariantCulture);
+                        break;
+                    }
+                    Console.WriteLine("Invalid price format. Use digits, optionally with decimals (e.g. 1200 or 1200.00).");
+                }
+
+                // RentPrice
+                Console.WriteLine($"Current RentPrice: {curRent}");
+                string newRent;
+                while (true)
+                {
+                    Console.Write("New RentPrice (Enter = keep): ");
+                    var inRent = (Console.ReadLine() ?? "").Trim();
+                    if (string.IsNullOrEmpty(inRent)) { newRent = curRent; break; }
+                    if (decimal.TryParse(inRent, NumberStyles.Number, CultureInfo.InvariantCulture, out var dRent))
+                    {
+                        // keep no trailing decimals if whole number originally was integer style, but user likely prefers 2 decimals
+                        newRent = dRent.ToString("0.##", CultureInfo.InvariantCulture);
+                        break;
+                    }
+                    Console.WriteLine("Invalid price format. Use digits, optionally with decimals (e.g. 200 or 200.00).");
+                }
+
+                // Preserve Content
+                string[] contentLines = Array.Empty<string>();
+                if (root.TryGetProperty("Content", out var pContent) && pContent.ValueKind == JsonValueKind.Array)
+                {
+                    contentLines = pContent.EnumerateArray().Select(e => e.GetString() ?? string.Empty).ToArray();
+                }
+
+                // Build output dictionary
+                var outDict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Title"] = newTitle,
+                    ["Author"] = newAuthor,
+                    ["Category"] = newCategory,
+                    ["BuyPrice"] = newBuy,
+                    ["RentPrice"] = newRent,
+                    ["Content"] = contentLines
+                };
+
+                if (newCategory == "Fiction")
+                {
+                    outDict["Genre"] = newGenre ?? "";
+                    // ensure SubCategory is not present
+                }
+                else
+                {
+                    outDict["SubCategory"] = newSubCategory ?? "";
+                    // ensure Genre is not present
+                }
+
+                var opts = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                };
+
+                var outJson = JsonSerializer.Serialize(outDict, opts);
+                File.WriteAllText(filePath, outJson, Encoding.UTF8);
+
+                StyleConsPrint.WriteCentered("Book JSON updated successfully.");
+                Console.WriteLine($"Updated file: {Path.GetFileName(filePath)}");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in ChangeBooksInfo: {ex.Message}");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
+        }
+
+        public void ReadBookForCheacking()
+        {
+            try
+            {
+                var filePath = SelectUnsortedBook();
+                if (string.IsNullOrEmpty(filePath)) return;
+
+                var json = File.ReadAllText(filePath, Encoding.UTF8);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                Console.Clear();
+                StyleConsPrint.WriteCentered($"Content - {Path.GetFileName(filePath)}");
+                Console.WriteLine();
+
+                if (root.TryGetProperty("Content", out var pContent) && pContent.ValueKind == JsonValueKind.Array)
+                {
+                    var lines = pContent.EnumerateArray().Select(e => e.GetString() ?? string.Empty).ToArray();
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        Console.WriteLine($"{i + 1,3}: {lines[i]}");
+                    }
+                }
+                else if (root.TryGetProperty("Content", out pContent) && pContent.ValueKind == JsonValueKind.String)
+                {
+                    // fallback: single string -> print split lines
+                    var text = pContent.GetString() ?? string.Empty;
+                    var normalized = text.Replace("\r\n", "\n").Replace("\r", "\n");
+                    var split = normalized.Split('\n');
+                    for (int i = 0; i < split.Length; i++)
+                        Console.WriteLine($"{i + 1,3}: {split[i]}");
+                }
+                else
+                {
+                    Console.WriteLine("[No Content found in JSON]");
+                }
+
+                Console.WriteLine();
+                Console.WriteLine("Press any key to return...");
+                Console.ReadKey(true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in ReadBookForCheacking: {ex.Message}");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
+        }
     }
 
     internal class StandardUser : AllUsers, Ilogin, IAccountInfo
@@ -978,81 +1281,9 @@ namespace E_Library_Manager.Main.AccountsHandler
 
         public void CheckoutBook()
         {
-            try
-            {
-                // Check ban status first
-                if (Admin.IsUserBanned(ID, out var untilUtc))
-                {
-                    StyleConsPrint.WriteCentered($"You are banned until {untilUtc.ToLocalTime():f}. Cannot borrow books.");
-                    Console.WriteLine("Press any key to continue...");
-                    Console.ReadKey(true);
-                    return;
-                }
-
-                Console.Clear();
-                StyleConsPrint.WriteCentered("Borrow Book");
-                Console.WriteLine("Type book title (prefix). Press Enter to list all. Press Escape to cancel.");
-                Console.Write("Search: ");
-
-                var (canceled, prefix) = ReadInputWithCancelForUser();
-                if (canceled)
-                    return;
-
-                var books = Admin.SearchBooksByPrefix(prefix);
-                if (books.Count == 0)
-                {
-                    StyleConsPrint.WriteCentered("No books found.");
-                    Console.WriteLine("Press any key to return...");
-                    Console.ReadKey(true);
-                    return;
-                }
-
-                var selectedTitle = Admin.PromptSelectBookFromList(books);
-                if (selectedTitle == null)
-                    return;
-
-                // Load borrowed records and compute counts
-                var borrowed = Admin.LoadBorrowedRecords();
-                var userRecords = borrowed.Where(b => b.UserId == ID).ToList();
-                var currentBorrowed = userRecords.Count(b => !b.ReturnedUtc.HasValue);
-                var weekStart = Admin.StartOfWeek(DateTime.UtcNow.ToLocalTime(), DayOfWeek.Monday).ToUniversalTime();
-                var weeklyBorrowed = userRecords.Count(b => b.BorrowedUtc >= weekStart);
-
-                if (currentBorrowed >= MaxConcurrentBorrowed)
-                {
-                    StyleConsPrint.WriteCentered($"You currently have {currentBorrowed} books borrowed. Return a book before borrowing more (max {MaxConcurrentBorrowed}).");
-                    Console.WriteLine("Press any key to continue...");
-                    Console.ReadKey(true);
-                    return;
-                }
-
-                // Add borrow record
-                var newRec = new Admin.BorrowRecord
-                {
-                    UserId = ID,
-                    Title = selectedTitle,
-                    BorrowedUtc = DateTime.UtcNow,
-                    ReturnedUtc = null
-                };
-
-                borrowed.Add(newRec);
-                Admin.SaveBorrowedRecords(borrowed);
-
-                StyleConsPrint.WriteCentered($"Book '{selectedTitle}' borrowed successfully.");
-                Console.WriteLine($"Current borrowed: {currentBorrowed + 1}");
-                Console.WriteLine($"Borrowed this week: {weeklyBorrowed + 1}");
-                Console.WriteLine("Press any key to continue...");
-                Console.ReadKey(true);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error borrowing book: " + ex.Message);
-                Console.WriteLine("Press any key to continue...");
-                Console.ReadKey(true);
-            }
+            SelectingTheBookMainCategory();
         }
-
-        // Helper for ReadInputWithCancel usable from StandardUser
+                
         static (bool canceled, string input) ReadInputWithCancelForUser()
         {
             var sb = new StringBuilder();
@@ -1085,6 +1316,120 @@ namespace E_Library_Manager.Main.AccountsHandler
                 }
             }
         }
+
+        public void SelectingTheBookMainCategory()
+        {
+            while (true)
+            {
+                Console.Clear();
+                BooksDisplayMenu.SelectBookCategoryMenu();
+
+                var key = Console.ReadKey(true);
+                switch (key.Key)
+                {
+                    case ConsoleKey.D1:
+                    case ConsoleKey.NumPad1:
+                        SelectingBookGenre();
+                        break;
+                    case ConsoleKey.D2:
+                    case ConsoleKey.NumPad2:
+                        SelectingBookSubCategory();
+                        break;
+                    case ConsoleKey.Escape:
+                        return;
+
+                    default:
+                        break;
+                }
+            }
+        }
+        public void SelectingBookSubCategory()
+        {
+            while (true)
+            {
+                Console.Clear();
+                BooksDisplayMenu.SelectBookSubCategoryMenu();
+                var key = Console.ReadKey(true);
+                switch (key.Key)
+                {
+                    case ConsoleKey.D1:
+                    case ConsoleKey.NumPad1:
+                        //display the History SubCategory
+                        break;
+                    case ConsoleKey.D2:
+                    case ConsoleKey.NumPad2:
+                        //display the Politics SubCategory
+                        break;
+                    case ConsoleKey.D3:
+                    case ConsoleKey.NumPad3:
+                        //display the Philosophy SubCategory
+                        break;
+                    case ConsoleKey.D4:
+                    case ConsoleKey.NumPad4:
+                        //display the Math SubCategory
+                        break;
+                    case ConsoleKey.D5:
+                    case ConsoleKey.NumPad5:
+                        //display the Science SubCategory
+                        break;
+                    case ConsoleKey.Escape:
+                        return;
+
+                    default:
+                        break;
+                }
+            }
+        }
+        public void SelectingBookGenre()
+        {
+            while (true)
+            {
+                Console.Clear();
+                BooksDisplayMenu.SelectBookGenreMenu();
+                var key = Console.ReadKey(true);
+                switch (key.Key)
+                {
+                    case ConsoleKey.D1:
+                    case ConsoleKey.NumPad1:
+                        //display the Fantasy Genre
+                        break;
+                    case ConsoleKey.D2:
+                    case ConsoleKey.NumPad2:
+                        //display the Science Fiction Genre
+                        break;
+                    case ConsoleKey.D3:
+                    case ConsoleKey.NumPad3:
+                        //display the Mystery Genre
+                        break;
+                    case ConsoleKey.D4:
+                    case ConsoleKey.NumPad4:
+                        //display the Romance Genre
+                        break;
+                    case ConsoleKey.D5:
+                    case ConsoleKey.NumPad5:
+                        //display the Horror Genre
+                        break;
+                    case ConsoleKey.D6:
+                    case ConsoleKey.NumPad6:
+                        //display the Historical Genre
+                        break;
+                    case ConsoleKey.D7:
+                    case ConsoleKey.NumPad7:
+                        //display the Dystopian Genre
+                        break;
+                    case ConsoleKey.D8:
+                    case ConsoleKey.NumPad8:
+                        //display the Adventure Genre
+                        break;
+                    case ConsoleKey.Escape:
+                        return;
+
+                    default:
+                        break;
+                }
+            }
+        }
+
         public void GoToBookMenu()
         {
             // Code to go to book menu
