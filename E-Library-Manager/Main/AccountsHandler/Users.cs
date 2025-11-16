@@ -1220,16 +1220,15 @@ namespace E_Library_Manager.Main.AccountsHandler
                 Console.WriteLine($"Email   : {selected.Email}");
 
                 // borrow stats
-                var borrowed = LoadBorrowedRecords();
-                var userRecords = borrowed.Where(b => b.UserId == selected.ID).ToList();
+                var Purchased = LoadBorrowedRecords();
+                var userRecords = Purchased.Where(b => b.UserId == selected.ID).ToList();
                 var totalBorrowed = userRecords.Count;
                 var currentBorrowed = userRecords.Count(b => !b.ReturnedUtc.HasValue);
                 var weekStart = StartOfWeek(DateTime.UtcNow.ToLocalTime(), DayOfWeek.Monday).ToUniversalTime();
                 var weeklyBorrowed = userRecords.Count(b => b.BorrowedUtc >= weekStart);
 
-                Console.WriteLine($"Total borrowed (ever): {totalBorrowed}");
-                Console.WriteLine($"Current borrowed: {currentBorrowed}");
-                Console.WriteLine($"Borrowed this week: {weeklyBorrowed}");
+                Console.WriteLine($"Total Purchased Books (ever): {totalBorrowed}");
+                Console.WriteLine($"Total Rented Books(ever): ");
 
                 if (IsUserBanned(selected.ID, out var untilUtc))
                 {
@@ -1492,6 +1491,165 @@ namespace E_Library_Manager.Main.AccountsHandler
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in ReadBookForCheacking: {ex.Message}");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
+        }
+
+        public void DisplayAllUsersTable()
+        {
+            try
+            {
+                var path = GetUserDBPath();
+                if (!File.Exists(path))
+                {
+                    StyleConsPrint.WriteCentered("No users database found.");
+                    Console.WriteLine("Press any key to return...");
+                    Console.ReadKey(true);
+                    return;
+                }
+
+                var rawLines = File.ReadAllLines(path, Encoding.UTF8)
+                                   .Where(l => !string.IsNullOrWhiteSpace(l))
+                                   .ToList();
+
+                // remove header if present
+                if (rawLines.Count > 0 &&
+                    (rawLines[0].TrimStart().StartsWith("ID", StringComparison.OrdinalIgnoreCase) ||
+                     rawLines[0].IndexOf("Username", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    rawLines.RemoveAt(0);
+                }
+
+                var rows = new List<string[]>();
+                foreach (var line in rawLines)
+                {
+                    // Basic CSV split - handles the project's simple CSV format
+                    var tokens = line.Split(',');
+                    if (tokens.Length < 2) continue;
+
+                    var id = tokens.Length > 0 ? tokens[0].Trim() : "";
+                    var username = tokens.Length > 1 ? tokens[1].Trim() : "";
+                    // password is tokens[2] - ignored here
+                    var fullname = tokens.Length > 3 ? tokens[3].Trim() : "";
+                    var age = tokens.Length > 4 ? tokens[4].Trim() : "";
+                    var email = tokens.Length > 5 ? tokens[5].Trim() : "";
+                    var credit = tokens.Length > 6 ? tokens[6].Trim() : "";
+
+                    string status;
+                    if (IsUserBanned(id, out var untilUtc))
+                    {
+                        status = $"BANNED until {untilUtc.ToLocalTime():g}";
+                    }
+                    else
+                    {
+                        status = "Active";
+                    }
+
+                    rows.Add(new[] { id, username, fullname, age, email, credit, status });
+                }
+
+                // Table headers
+                var headers = new[] { "ID", "Username", "Full Name", "Age", "Email", "Credit", "Status" };
+
+                // compute column widths
+                var colCount = headers.Length;
+                var widths = new int[colCount];
+                for (int c = 0; c < colCount; c++)
+                {
+                    widths[c] = headers[c].Length;
+                }
+                foreach (var r in rows)
+                {
+                    for (int c = 0; c < colCount; c++)
+                    {
+                        var v = c < r.Length ? (r[c] ?? "") : "";
+                        widths[c] = Math.Max(widths[c], v.Length);
+                    }
+                }
+
+                // build separators
+                string MakeSeparator(char left, char fill, char mid, char right)
+                {
+                    var sb = new StringBuilder();
+                    sb.Append(left);
+                    for (int i = 0; i < colCount; i++)
+                    {
+                        sb.Append(new string(fill, widths[i] + 2));
+                        sb.Append(i == colCount - 1 ? right : mid);
+                    }
+                    return sb.ToString();
+                }
+
+                var top = MakeSeparator('+', '-', '+', '+');
+                var mid = MakeSeparator('+', '-', '+', '+');
+                var bottom = MakeSeparator('+', '-', '+', '+');
+
+                Console.Clear();
+                StyleConsPrint.WriteCentered("Users");
+                Console.WriteLine();
+
+                // print top border
+                Console.WriteLine(top);
+
+                // print header row
+                {
+                    var sb = new StringBuilder();
+                    sb.Append("|");
+                    for (int c = 0; c < colCount; c++)
+                    {
+                        sb.Append(" ");
+                        sb.Append(headers[c].PadRight(widths[c]));
+                        sb.Append(" |");
+                    }
+                    Console.WriteLine(sb.ToString());
+                }
+
+                // header separator
+                Console.WriteLine(mid);
+
+                // print rows
+                foreach (var r in rows)
+                {
+                    var sb = new StringBuilder();
+                    sb.Append("|");
+                    // ID (right), Username (left), Full Name (left), Age (right), Email (left), Credit (right), Status (left)
+                    sb.Append(" ");
+                    sb.Append((r[0] ?? "").PadLeft(widths[0]));
+                    sb.Append(" | ");
+
+                    sb.Append((r[1] ?? "").PadRight(widths[1]));
+                    sb.Append(" | ");
+
+                    sb.Append((r[2] ?? "").PadRight(widths[2]));
+                    sb.Append(" | ");
+
+                    sb.Append((r[3] ?? "").PadLeft(widths[3]));
+                    sb.Append(" | ");
+
+                    sb.Append((r[4] ?? "").PadRight(widths[4]));
+                    sb.Append(" | ");
+
+                    sb.Append((r[5] ?? "").PadLeft(widths[5]));
+                    sb.Append(" | ");
+
+                    sb.Append((r[6] ?? "").PadRight(widths[6]));
+                    sb.Append(" |");
+
+                    Console.WriteLine(sb.ToString());
+                }
+
+                // bottom border
+                Console.WriteLine(bottom);
+
+                Console.WriteLine();
+                Console.WriteLine($"Total users: {rows.Count}");
+                Console.WriteLine("Press any key to return...");
+                Console.ReadKey(true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error displaying users: {ex.Message}");
                 Console.WriteLine("Press any key to continue...");
                 Console.ReadKey(true);
             }

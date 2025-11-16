@@ -294,6 +294,11 @@ namespace E_Library_Manager.Main
                         Console.ReadKey(true);
                         break;
 
+                    case ConsoleKey.D:
+                        Console.Clear();
+                        admin.DisplayAllUsersTable();
+                        Console.ReadKey(true);
+                        break;
                     case ConsoleKey.D5:
                     case ConsoleKey.NumPad5:
                         Console.Clear();
