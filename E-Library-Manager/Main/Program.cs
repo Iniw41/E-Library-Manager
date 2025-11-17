@@ -380,6 +380,21 @@ namespace E_Library_Manager.Main
 
                     case ConsoleKey.D4:
                     case ConsoleKey.NumPad4:
+                        //Display User Info
+                        user.DisplayInfo();
+                        Console.Clear();
+                        break;
+                    case ConsoleKey.D5:
+                    case ConsoleKey.NumPad5:
+                        //Contact staff (dont Implement Yet)
+                        Console.Clear();
+                        break;
+                    case ConsoleKey.D6:
+                    case ConsoleKey.NumPad6:
+                        //addcredits
+                        Console.Clear();
+                        break;
+
                     case ConsoleKey.Escape:
                         // Logout -> return to main menu
                         return;

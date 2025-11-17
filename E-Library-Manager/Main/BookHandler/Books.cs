@@ -47,14 +47,14 @@ namespace E_Library_Manager.Main.BookHandler
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
 
-            File.WriteAllText(path, ToJson());
+            File.WriteAllText(path, ToJson(), Encoding.UTF8);
         }
 
         // Load from JSON file and return Books/Fiction/NonFiction instance
         public static Books LoadFromJsonFile(string path)
         {
             if (!File.Exists(path)) return null;
-            var json = File.ReadAllText(path);
+            var json = File.ReadAllText(path, Encoding.UTF8);
             return FromJson(json);
         }
 
@@ -93,7 +93,9 @@ namespace E_Library_Manager.Main.BookHandler
                     }
                     else if (contentProp.ValueKind == JsonValueKind.String)
                     {
-                        contentList.Add(contentProp.GetString());
+                        var txt = contentProp.GetString() ?? string.Empty;
+                        var normalized = txt.Replace("\r\n", "\n").Replace("\r", "\n");
+                        contentList.AddRange(normalized.Split('\n'));
                     }
                     else
                     {
@@ -270,6 +272,8 @@ namespace E_Library_Manager.Main.BookHandler
         public string Action { get; set; } // "Purchase" or "Rent"
         public float Price { get; set; }
         public DateTime TimeUtc { get; set; }
+        public DateTime? ExpiresUtc { get; set; } // for rents
+        public bool IsActive { get; set; } // active rent (true) or expired/closed (false)
     }
 
     internal static class BookService
@@ -293,7 +297,7 @@ namespace E_Library_Manager.Main.BookHandler
             var list = new List<BookInfo>();
             if (!Directory.Exists(root)) return list;
 
-            // include root and known subfolders
+            // include root and subfolders to be resilient
             var dirs = new[] { root, Path.Combine(root, "Fiction"), Path.Combine(root, "NonFiction") };
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -319,6 +323,29 @@ namespace E_Library_Manager.Main.BookHandler
             }
 
             return list.OrderBy(b => b.Title, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        public static BookInfo FindBookInfoByTitleAuthor(string title, string author)
+        {
+            var all = LoadAllBooks();
+            if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(author)) return null;
+
+            // exact match first (case-insensitive)
+            var exact = all.FirstOrDefault(b =>
+                string.Equals(b.Title, title, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(b.Author, author, StringComparison.OrdinalIgnoreCase));
+            if (exact != null) return exact;
+
+            // match by title only
+            var byTitle = all.FirstOrDefault(b => !string.IsNullOrEmpty(b.Title) &&
+                b.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
+            if (byTitle != null) return byTitle;
+
+            // contains fallback
+            var contains = all.FirstOrDefault(b =>
+                (!string.IsNullOrEmpty(b.Title) && b.Title.IndexOf(title ?? string.Empty, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                (!string.IsNullOrEmpty(b.Author) && b.Author.IndexOf(author ?? string.Empty, StringComparison.OrdinalIgnoreCase) >= 0));
+            return contains;
         }
 
         public static List<BookInfo> FilterByTitlePrefix(IEnumerable<BookInfo> items, string prefix)
@@ -432,6 +459,33 @@ namespace E_Library_Manager.Main.BookHandler
             Console.WriteLine(sep);
             Console.WriteLine();
             Console.WriteLine($"Total books: {rows.Count}");
+        }
+
+        public static void PrintBookContent(BookInfo book)
+        {
+            if (book == null) return;
+            Console.Clear();
+            StyleConsPrint.WriteCentered($"Reading: {book.Title} — {book.Author}");
+            Console.WriteLine();
+
+            if (book.Book?.Content == null || book.Book.Content.Count == 0)
+            {
+                Console.WriteLine("[No content available]");
+                Console.WriteLine();
+                Console.WriteLine("Press any key to return...");
+                Console.ReadKey(true);
+                return;
+            }
+
+            // print content lines
+            for (int i = 0; i < book.Book.Content.Count; i++)
+            {
+                Console.WriteLine($"{i + 1,3}: {book.Book.Content[i]}");
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("Press any key to return...");
+            Console.ReadKey(true);
         }
 
         // ---------------------------
@@ -631,7 +685,7 @@ namespace E_Library_Manager.Main.BookHandler
         }
 
         // ---------------
-        // Transactions persistence
+        // Transactions persistence and helpers
         // ---------------
         public static List<TransactionRecord> LoadTransactions()
         {
@@ -643,8 +697,16 @@ namespace E_Library_Manager.Main.BookHandler
                 var json = File.ReadAllText(path, Encoding.UTF8);
                 if (string.IsNullOrWhiteSpace(json)) return new List<TransactionRecord>();
                 var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var list = JsonSerializer.Deserialize<List<TransactionRecord>>(json, opts);
-                return list ?? new List<TransactionRecord>();
+                var list = JsonSerializer.Deserialize<List<TransactionRecord>>(json, opts) ?? new List<TransactionRecord>();
+
+                // cleanup expired rentals (mark IsActive=false)
+                bool changed = CleanupExpiredRentals(list);
+                if (changed)
+                {
+                    SaveTransactions(list);
+                }
+
+                return list;
             }
             catch
             {
@@ -658,7 +720,10 @@ namespace E_Library_Manager.Main.BookHandler
             var dir = Path.GetDirectoryName(path) ?? AppContext.BaseDirectory;
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
 
-            var opts = new JsonSerializerOptions { WriteIndented = true };
+            var opts = new JsonSerializerOptions
+            {
+                WriteIndented = true
+            };
             var json = JsonSerializer.Serialize(records ?? new List<TransactionRecord>(), opts);
             File.WriteAllText(path, json, Encoding.UTF8);
         }
@@ -668,6 +733,65 @@ namespace E_Library_Manager.Main.BookHandler
             var all = LoadTransactions();
             all.Add(rec);
             SaveTransactions(all);
+        }
+
+        // marks rentals expired if their ExpiresUtc passed
+        // returns true if any record changed
+        private static bool CleanupExpiredRentals(List<TransactionRecord> records)
+        {
+            bool changed = false;
+            var now = DateTime.UtcNow;
+            foreach (var r in records)
+            {
+                if (string.Equals(r.Action, "Rent", StringComparison.OrdinalIgnoreCase) && r.IsActive)
+                {
+                    if (r.ExpiresUtc.HasValue && r.ExpiresUtc.Value <= now)
+                    {
+                        r.IsActive = false;
+                        changed = true;
+                    }
+                }
+            }
+            return changed;
+        }
+
+        public static (int totalPurchased, int totalRentedEver, int activeRented, float totalSpent) GetUserTransactionStats(string userId)
+        {
+            var all = LoadTransactions();
+            var user = all.Where(t => string.Equals(t.UserId, userId, StringComparison.OrdinalIgnoreCase)).ToList();
+            int purchased = user.Count(t => string.Equals(t.Action, "Purchase", StringComparison.OrdinalIgnoreCase));
+            int rentedEver = user.Count(t => string.Equals(t.Action, "Rent", StringComparison.OrdinalIgnoreCase));
+            int activeRentals = user.Count(t => string.Equals(t.Action, "Rent", StringComparison.OrdinalIgnoreCase) && t.IsActive);
+            float spent = user.Sum(t => t.Price);
+            return (purchased, rentedEver, activeRentals, spent);
+        }
+
+        public static List<TransactionRecord> GetUserTransactions(string userId)
+        {
+            var all = LoadTransactions();
+            var user = all.Where(t => string.Equals(t.UserId, userId, StringComparison.OrdinalIgnoreCase)).OrderByDescending(t => t.TimeUtc).ToList();
+            return user;
+        }
+
+        // return BookInfo objects which user currently owns (purchased) or has active rental
+        public static List<BookInfo> GetUserOwnedBookInfos(string userId)
+        {
+            var tx = GetUserTransactions(userId);
+            var relevant = tx.Where(t =>
+                string.Equals(t.Action, "Purchase", StringComparison.OrdinalIgnoreCase)
+                || (string.Equals(t.Action, "Rent", StringComparison.OrdinalIgnoreCase) && t.IsActive)
+            ).ToList();
+
+            var found = new List<BookInfo>();
+            foreach (var r in relevant)
+            {
+                var bi = FindBookInfoByTitleAuthor(r.Title, r.Author);
+                if (bi != null && !found.Any(x => string.Equals(x.Title, bi.Title, StringComparison.OrdinalIgnoreCase) && string.Equals(x.Author, bi.Author, StringComparison.OrdinalIgnoreCase)))
+                {
+                    found.Add(bi);
+                }
+            }
+            return found;
         }
     }
 }

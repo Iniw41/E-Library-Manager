@@ -1,5 +1,5 @@
 ﻿ID,Username,Password,Fullname,Age,Email,Credit
-1,Iniw,4145,Sample Guy,21,sampleguy@gmail.com,100
+1,Iniw,4145,Sample Guy,21,sampleguy@gmail.com,99999
 2,Lykon,8231,Marco Reyes,19,marcoreyes@gmail.com,100
 3,Seren,9274,Alexa Cruz,22,alexacruz@gmail.com,100
 4,Troven,5612,Daniel Santos,24,danielsantos@gmail.com,100

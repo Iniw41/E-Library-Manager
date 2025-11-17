@@ -87,27 +87,6 @@ namespace E_Library_Manager.Main.AccountsHandler
             Console.WriteLine("H. Help info for all options - Display this help information.");
             Console.WriteLine("Esc. Logout - Exit the user menu and log out.");
         }
-        public static void DisplayBookMenuRented()
-        {
-            StyleConsPrint.WriteCentered("Book Menu: (Rented)");
-            StyleConsPrint.WriteCentered("1. View All Books");
-            StyleConsPrint.WriteCentered("2. Search Book by Title");
-            StyleConsPrint.WriteCentered("3. Search Book by Author");
-            StyleConsPrint.WriteCentered("4. Search Book by Category");
-            StyleConsPrint.WriteCentered("5. Search Book by Genre");
-            StyleConsPrint.WriteCentered("Esc. Go Back");
-        }
-        public static void DisplayBookMenuPurchased()
-        {
-            StyleConsPrint.WriteCentered("Book Menu: (Purchased)");
-            StyleConsPrint.WriteCentered("1. View All Books");
-            StyleConsPrint.WriteCentered("2. Search Book by Title");
-            StyleConsPrint.WriteCentered("3. Search Book by Author");
-            StyleConsPrint.WriteCentered("4. Search Book by Category");
-            StyleConsPrint.WriteCentered("5. Search Book by Genre");
-            StyleConsPrint.WriteCentered("5. Read Book");
-            StyleConsPrint.WriteCentered("Esc. Go Back");
-        }
         public static void DisplayBookMenu()
         {
             StyleConsPrint.WriteCentered("Book Menu:");
