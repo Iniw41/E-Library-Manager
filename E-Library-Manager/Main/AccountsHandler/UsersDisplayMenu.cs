@@ -65,11 +65,54 @@ namespace E_Library_Manager.Main.AccountsHandler
         public static void UserMenu()
         {
             StyleConsPrint.WriteCentered("User Menu:");
-            StyleConsPrint.WriteCentered("1. Go to Book Menu");
+            StyleConsPrint.WriteCentered("1. Read a Book");
             StyleConsPrint.WriteCentered("2. Purchase a Book");
             StyleConsPrint.WriteCentered("3. Rent a Book");
             StyleConsPrint.WriteCentered("4. Display Info");
+            StyleConsPrint.WriteCentered("5. Contact staff");
+            StyleConsPrint.WriteCentered("6. Add Credits");
+            StyleConsPrint.WriteCentered("H. Help info for all options");
             StyleConsPrint.WriteCentered("Esc. Logout");
+        }
+        public static void HelpUserMenu()
+        {
+            StyleConsPrint.WriteCentered("Help - User Menu:");
+            Console.WriteLine("1. Go to Book Menu - Access the book browsing and reading section.");
+            Console.WriteLine("2. Purchase a Book - Buy a book to own permanently.");
+            Console.WriteLine("3. Rent a Book - Borrow a book for a limited time.");
+            Console.WriteLine("4. Display Info - View your account details and status.");
+            Console.WriteLine("5. Contact staff - Reach out to library staff for assistance.");
+            Console.WriteLine("6. Add Credits - Top up your account balance for purchases and rentals.");
+            Console.WriteLine("H. Help info for all options - Display this help information.");
+            Console.WriteLine("Esc. Logout - Exit the user menu and log out.");
+        }
+        public static void DisplayBookMenuRented()
+        {
+            StyleConsPrint.WriteCentered("Book Menu: (Rented)");
+            StyleConsPrint.WriteCentered("1. View All Books");
+            StyleConsPrint.WriteCentered("2. Search Book by Title");
+            StyleConsPrint.WriteCentered("3. Search Book by Author");
+            StyleConsPrint.WriteCentered("4. Search Book by Category");
+            StyleConsPrint.WriteCentered("5. Search Book by Genre");
+            StyleConsPrint.WriteCentered("Esc. Go Back");
+        }
+        public static void DisplayBookMenuPurchased()
+        {
+            StyleConsPrint.WriteCentered("Book Menu: (Purchased)");
+            StyleConsPrint.WriteCentered("1. View All Books");
+            StyleConsPrint.WriteCentered("2. Search Book by Title");
+            StyleConsPrint.WriteCentered("3. Search Book by Author");
+            StyleConsPrint.WriteCentered("4. Search Book by Category");
+            StyleConsPrint.WriteCentered("5. Search Book by Genre");
+            StyleConsPrint.WriteCentered("5. Read Book");
+            StyleConsPrint.WriteCentered("Esc. Go Back");
+        }
+        public static void DisplayBookMenu()
+        {
+            StyleConsPrint.WriteCentered("Book Menu:");
+            StyleConsPrint.WriteCentered("1. View Purchased Books");
+            StyleConsPrint.WriteCentered("2. View Rented Books");
+            StyleConsPrint.WriteCentered("Esc. Go Back");
         }
         public static void CreateNewUserMenu()
         {

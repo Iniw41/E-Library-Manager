@@ -39,8 +39,9 @@ namespace E_Library_Manager.Main.BookHandler
             StyleConsPrint.WriteCentered("1. History");
             StyleConsPrint.WriteCentered("2. Politics");
             StyleConsPrint.WriteCentered("3. Philosophy");
-            StyleConsPrint.WriteCentered("4. Math");
-            StyleConsPrint.WriteCentered("5. Science");
+            StyleConsPrint.WriteCentered("4. Engineering");
+            StyleConsPrint.WriteCentered("5. Medical");
+            StyleConsPrint.WriteCentered("6. Biography");
             StyleConsPrint.WriteCentered("Esc. Go Back");
         }
         public static void SelectBookGenreMenu()
