@@ -203,6 +203,8 @@ namespace E_Library_Manager.Main
                             if (tokens.Length > 4) int.TryParse(tokens[4], out age);
                             string email = tokens.Length > 5 ? tokens[5] : string.Empty;
                             float credit = 0.0f;
+                            if (tokens.Length > 6)
+                                float.TryParse(tokens[6], NumberStyles.Any, CultureInfo.InvariantCulture, out credit);
 
                             return new StandardUser(id, fileUsername, filePassword, fullname, age, email, credit);
                         }
@@ -232,6 +234,8 @@ namespace E_Library_Manager.Main
                             if (tokens.Length > 4) int.TryParse(tokens[4], out age);
                             string email = tokens.Length > 5 ? tokens[5] : string.Empty;
                             float credit = 0.0f;
+                            if (tokens.Length > 6)
+                                float.TryParse(tokens[6], NumberStyles.Any, CultureInfo.InvariantCulture, out credit);
 
                             return new StandardUser(fileId, fileUsername, filePassword, fullname, age, email, credit);
                         }
@@ -391,8 +395,10 @@ namespace E_Library_Manager.Main
                         break;
                     case ConsoleKey.D6:
                     case ConsoleKey.NumPad6:
-                        //addcredits
+                        //addcredits -> call interactive addCredit
                         Console.Clear();
+                        user.addCredit();
+                        Console.ReadKey(true);
                         break;
 
                     case ConsoleKey.Escape:
