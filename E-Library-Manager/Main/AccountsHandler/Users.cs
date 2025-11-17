@@ -100,16 +100,14 @@ namespace E_Library_Manager.Main.AccountsHandler
 
                 // Ensure header has Credit column
                 var header = lines[0];
-                if (header.IndexOf("ID", StringComparison.OrdinalIgnoreCase) >= 0)
+                if (!header.Contains("Credit", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!header.Contains("Credit", StringComparison.OrdinalIgnoreCase))
-                    {
-                        header = header.TrimEnd() + ",Credit";
-                        lines[0] = header;
-                    }
+                    header = header.TrimEnd() + ",Credit";
+                    lines[0] = header;
                 }
 
                 // update matching user line
+                bool updated = false;
                 for (int i = 1; i < lines.Count; i++)
                 {
                     var line = lines[i];
@@ -122,14 +120,18 @@ namespace E_Library_Manager.Main.AccountsHandler
                         while (tokens.Count < 7) tokens.Add(string.Empty);
                         tokens[6] = newCredit.ToString("0.##", CultureInfo.InvariantCulture);
                         lines[i] = string.Join(",", tokens);
-                        File.WriteAllLines(path, lines, Encoding.UTF8);
-                        return;
+                        updated = true;
+                        break;
                     }
                 }
 
-                // If not found, append new user entry line with minimal fields (not ideal but safe)
-                var newLine = $"{userId},Unknown, , ,0,,{newCredit.ToString("0.##", CultureInfo.InvariantCulture)}";
-                lines.Add(newLine);
+                if (!updated)
+                {
+                    // If not found, append new user entry line with minimal fields (not ideal but safe)
+                    var newLine = $"{userId},Unknown, , ,0,,{newCredit.ToString("0.##", CultureInfo.InvariantCulture)}";
+                    lines.Add(newLine);
+                }
+
                 File.WriteAllLines(path, lines, Encoding.UTF8);
             }
             catch
@@ -1293,31 +1295,23 @@ namespace E_Library_Manager.Main.AccountsHandler
                 Console.WriteLine($"Total Purchased Books (ever): {totalBorrowed}");
                 Console.WriteLine($"Total Rented Books(ever): ");
 
-                if (IsUserBanned(selected.ID, out var untilUtc))
+                Console.WriteLine();
+                Console.WriteLine("Options: 1 = Unban user, 2 = Back");
+                Console.Write("Select option: ");
+                var opt = Console.ReadLine() ?? string.Empty;
+                if (opt.Trim() == "1")
                 {
-                    Console.WriteLine($"Status  : BANNED until {untilUtc.ToLocalTime():f}");
-                    Console.WriteLine();
-                    Console.WriteLine("Options: 1 = Unban user, 2 = Back");
-                    Console.Write("Select option: ");
-                    var opt = Console.ReadLine() ?? string.Empty;
-                    if (opt.Trim() == "1")
-                    {
-                        var bans = LoadBans();
-                        if (bans.Remove(selected.ID))
-                            SaveBans(bans);
-                        StyleConsPrint.WriteCentered($"User '{selected.Username}' has been unbanned.");
-                        Console.WriteLine("Press any key to continue...");
-                        Console.ReadKey(true);
-                        return;
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Status  : Active (not banned)");
-                    Console.WriteLine();
-                    Console.WriteLine("Press any key to return...");
+                    var bans = LoadBans();
+                    if (bans.Remove(selected.ID))
+                        SaveBans(bans);
+                    StyleConsPrint.WriteCentered($"User '{selected.Username}' has been unbanned.");
+                    Console.WriteLine("Press any key to continue...");
                     Console.ReadKey(true);
+                    return;
                 }
+            
+                Console.WriteLine("Press any key to return...");
+                Console.ReadKey(true);
             }
             catch (Exception ex)
             {
@@ -1733,20 +1727,54 @@ namespace E_Library_Manager.Main.AccountsHandler
         {
             return Username == username && Password == password;
         }
+
+        // Show detailed account info for the current user (similar to admin view, but only for self)
         public void DisplayInfo()
         {
-            Console.Clear();
-            StyleConsPrint.WriteCentered($"User Info - {Username}");
-            Console.WriteLine($"ID      : {ID}");
-            Console.WriteLine($"Username: {Username}");
-            Console.WriteLine($"Fullname: {Fullname}");
-            Console.WriteLine($"Age     : {Age}");
-            Console.WriteLine($"Email   : {Email}");
-            Console.WriteLine();
-            Console.WriteLine("Press any key to return...");
-            Console.ReadKey(true);
+            try
+            {
+                Console.Clear();
+                StyleConsPrint.WriteCentered($"My Account - {Username}");
+                Console.WriteLine($"ID      : {ID}");
+                Console.WriteLine($"Username: {Username}");
+                Console.WriteLine($"Fullname: {Fullname}");
+                Console.WriteLine($"Age     : {Age}");
+                Console.WriteLine($"Email   : {Email}");
+                Console.WriteLine();
+
+                // transaction stats from BookService
+                var stats = BookHandler.BookService.GetUserTransactionStats(ID);
+                Console.WriteLine($"Total Purchased (ever): {stats.totalPurchased}");
+                Console.WriteLine($"Total Rented (ever)  : {stats.totalRentedEver}");
+                Console.WriteLine($"Active Rentals        : {stats.activeRented}");
+                Console.WriteLine($"Total Credits Spent   : {stats.totalSpent.ToString("0.##", CultureInfo.InvariantCulture)}");
+                Console.WriteLine($"Current Credits       : {Credit.ToString("0.##", CultureInfo.InvariantCulture)}");
+
+                Console.WriteLine();
+                Console.WriteLine("Options: 1 = Add Credits, 2 = View my purchases/rentals, 3 = Back");
+                Console.Write("Select option: ");
+                var opt = (Console.ReadLine() ?? string.Empty).Trim();
+                switch (opt)
+                {
+                    case "1":
+                        addCredit();
+                        break;
+                    case "2":
+                        ReadBook(); // shows user's owned/rented books (and content)
+                        break;
+                    default:
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error displaying account info: " + ex.Message);
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
         }
 
+        // interactive purchase flow
         public void PurchaseBook()
         {
             Console.Clear();
@@ -1792,8 +1820,6 @@ namespace E_Library_Manager.Main.AccountsHandler
 
             // Price and confirmation
             float price = selected.Book?.BuyPrice ?? 0f;
-            if (!float.TryParse(selected.BuyPriceString, NumberStyles.Any, CultureInfo.InvariantCulture, out var tmp)) price = selected.Book?.BuyPrice ?? 0f;
-
             if (price <= 0)
             {
                 StyleConsPrint.WriteCentered("Selected book has invalid price. Cannot purchase.");
@@ -1833,7 +1859,7 @@ namespace E_Library_Manager.Main.AccountsHandler
             // persist credit to UsersDB
             Admin.UpdateUserCredit(this.ID, Credit);
 
-            // record transaction
+            // record transaction (purchase)
             var rec = new BookHandler.TransactionRecord
             {
                 UserId = this.ID,
@@ -1842,16 +1868,16 @@ namespace E_Library_Manager.Main.AccountsHandler
                 Author = selected.Author,
                 Action = "Purchase",
                 Price = price,
-                TimeUtc = DateTime.UtcNow
+                TimeUtc = DateTime.UtcNow,
+                IsActive = true
             };
             BookHandler.BookService.AddTransactionRecord(rec);
 
             // print centered receipt
             PrintCenteredReceipt("Purchase Receipt", selected.Title, selected.Author, price, before, Credit);
-
-            // done
         }
 
+        // interactive rent flow - 3 day rental, record ExpiresUtc and IsActive
         public void RentBook()
         {
             Console.Clear();
@@ -1896,8 +1922,6 @@ namespace E_Library_Manager.Main.AccountsHandler
             if (selected == null) return;
 
             float price = selected.Book?.RentPrice ?? 0f;
-            if (!float.TryParse(selected.RentPriceString, NumberStyles.Any, CultureInfo.InvariantCulture, out var tmp)) price = selected.Book?.RentPrice ?? 0f;
-
             if (price <= 0)
             {
                 StyleConsPrint.WriteCentered("Selected book has invalid rent price. Cannot rent.");
@@ -1912,6 +1936,8 @@ namespace E_Library_Manager.Main.AccountsHandler
             Console.WriteLine($"Author: {selected.Author}");
             Console.WriteLine($"Rent Price : {price.ToString("0.00", CultureInfo.InvariantCulture)}");
             Console.WriteLine($"Your Credits: {Credit.ToString("0.##", CultureInfo.InvariantCulture)}");
+            var expires = DateTime.UtcNow.AddDays(3);
+            Console.WriteLine($"This rental will expire on (UTC): {expires.ToString("u")}");
             Console.WriteLine();
             Console.Write("Confirm rent? (Y/N): ");
             var confirm = Console.ReadKey(true).Key;
@@ -1937,7 +1963,7 @@ namespace E_Library_Manager.Main.AccountsHandler
             // persist credit to UsersDB
             Admin.UpdateUserCredit(this.ID, Credit);
 
-            // record transaction
+            // record transaction (rent) with expiry and active flag
             var rec = new BookHandler.TransactionRecord
             {
                 UserId = this.ID,
@@ -1946,14 +1972,14 @@ namespace E_Library_Manager.Main.AccountsHandler
                 Author = selected.Author,
                 Action = "Rent",
                 Price = price,
-                TimeUtc = DateTime.UtcNow
+                TimeUtc = DateTime.UtcNow,
+                ExpiresUtc = DateTime.UtcNow.AddDays(3),
+                IsActive = true
             };
             BookHandler.BookService.AddTransactionRecord(rec);
 
             // print centered receipt
             PrintCenteredReceipt("Rent Receipt", selected.Title, selected.Author, price, before, Credit);
-
-            // done
         }
 
         // centers a small receipt table in the console
@@ -2009,22 +2035,236 @@ namespace E_Library_Manager.Main.AccountsHandler
 
         public void SelectingBookGenre()
         {
-            // convenience: open genre filter then show results (non-purchasing)
-            BookHandler.BookService.InteractiveViewAllBooks();
+            // convenience: let user select a genre and then ask whether to purchase/rent or just view
+            var selected = BookHandler.BookService.InteractiveSelectBookByGenre();
+            if (selected == null) return;
+
+            Console.Clear();
+            StyleConsPrint.WriteCentered("Selected Book");
+            Console.WriteLine($"Title : {selected.Title}");
+            Console.WriteLine($"Author: {selected.Author}");
+            Console.WriteLine($"Price : {selected.BuyPriceString} (Buy) / {selected.RentPriceString} (Rent)");
+            Console.WriteLine();
+            Console.WriteLine("Options: 1 = Purchase, 2 = Rent, 3 = View Content, 0 = Back");
+            Console.Write("Select: ");
+            var opt = Console.ReadLine() ?? "";
+            switch (opt.Trim())
+            {
+                case "1":
+                    // simulate purchase flow for the selected book
+                    var tmpBefore = Credit;
+                    if (selected.Book?.BuyPrice > 0 && Credit >= selected.Book.BuyPrice)
+                    {
+                        Credit -= selected.Book.BuyPrice;
+                        Admin.UpdateUserCredit(ID, Credit);
+                        BookHandler.BookService.AddTransactionRecord(new BookHandler.TransactionRecord
+                        {
+                            UserId = this.ID,
+                            Username = this.Username,
+                            Title = selected.Title,
+                            Author = selected.Author,
+                            Action = "Purchase",
+                            Price = selected.Book.BuyPrice,
+                            TimeUtc = DateTime.UtcNow,
+                            IsActive = true
+                        });
+                        PrintCenteredReceipt("Purchase Receipt", selected.Title, selected.Author, selected.Book.BuyPrice, tmpBefore, Credit);
+                    }
+                    else
+                    {
+                        StyleConsPrint.WriteCentered("Insufficient credits or invalid price.");
+                        Console.WriteLine("Press any key...");
+                        Console.ReadKey(true);
+                    }
+                    break;
+                case "2":
+                    // rent
+                    var rentPrice = selected.Book?.RentPrice ?? 0f;
+                    tmpBefore = Credit;
+                    if (rentPrice > 0 && Credit >= rentPrice)
+                    {
+                        Credit -= rentPrice;
+                        Admin.UpdateUserCredit(ID, Credit);
+                        BookHandler.BookService.AddTransactionRecord(new BookHandler.TransactionRecord
+                        {
+                            UserId = this.ID,
+                            Username = this.Username,
+                            Title = selected.Title,
+                            Author = selected.Author,
+                            Action = "Rent",
+                            Price = rentPrice,
+                            TimeUtc = DateTime.UtcNow,
+                            ExpiresUtc = DateTime.UtcNow.AddDays(3),
+                            IsActive = true
+                        });
+                        PrintCenteredReceipt("Rent Receipt", selected.Title, selected.Author, rentPrice, tmpBefore, Credit);
+                    }
+                    else
+                    {
+                        StyleConsPrint.WriteCentered("Insufficient credits or invalid rent price.");
+                        Console.WriteLine("Press any key...");
+                        Console.ReadKey(true);
+                    }
+                    break;
+                case "3":
+                    // view content (if available)
+                    BookHandler.BookService.PrintBookContent(selected);
+                    break;
+                default:
+                    break;
+            }
         }
 
         public void SelectBookSubCategory()
         {
-            BookHandler.BookService.InteractiveViewAllBooks();
+            // similar to SelectingBookGenre but for subcategory
+            var selected = BookHandler.BookService.InteractiveSelectBookBySubCategory();
+            if (selected == null) return;
+
+            Console.Clear();
+            StyleConsPrint.WriteCentered("Selected Book");
+            Console.WriteLine($"Title : {selected.Title}");
+            Console.WriteLine($"Author: {selected.Author}");
+            Console.WriteLine($"Price : {selected.BuyPriceString} (Buy) / {selected.RentPriceString} (Rent)");
+            Console.WriteLine();
+            Console.WriteLine("Options: 1 = Purchase, 2 = Rent, 3 = View Content, 0 = Back");
+            Console.Write("Select: ");
+            var opt = Console.ReadLine() ?? "";
+            switch (opt.Trim())
+            {
+                case "1":
+                    var tmpBefore = Credit;
+                    if (selected.Book?.BuyPrice > 0 && Credit >= selected.Book.BuyPrice)
+                    {
+                        Credit -= selected.Book.BuyPrice;
+                        Admin.UpdateUserCredit(ID, Credit);
+                        BookHandler.BookService.AddTransactionRecord(new BookHandler.TransactionRecord
+                        {
+                            UserId = this.ID,
+                            Username = this.Username,
+                            Title = selected.Title,
+                            Author = selected.Author,
+                            Action = "Purchase",
+                            Price = selected.Book.BuyPrice,
+                            TimeUtc = DateTime.UtcNow,
+                            IsActive = true
+                        });
+                        PrintCenteredReceipt("Purchase Receipt", selected.Title, selected.Author, selected.Book.BuyPrice, tmpBefore, Credit);
+                    }
+                    else
+                    {
+                        StyleConsPrint.WriteCentered("Insufficient credits or invalid price.");
+                        Console.WriteLine("Press any key...");
+                        Console.ReadKey(true);
+                    }
+                    break;
+                case "2":
+                    var rentPrice = selected.Book?.RentPrice ?? 0f;
+                    tmpBefore = Credit;
+                    if (rentPrice > 0 && Credit >= rentPrice)
+                    {
+                        Credit -= rentPrice;
+                        Admin.UpdateUserCredit(ID, Credit);
+                        BookHandler.BookService.AddTransactionRecord(new BookHandler.TransactionRecord
+                        {
+                            UserId = this.ID,
+                            Username = this.Username,
+                            Title = selected.Title,
+                            Author = selected.Author,
+                            Action = "Rent",
+                            Price = rentPrice,
+                            TimeUtc = DateTime.UtcNow,
+                            ExpiresUtc = DateTime.UtcNow.AddDays(3),
+                            IsActive = true
+                        });
+                        PrintCenteredReceipt("Rent Receipt", selected.Title, selected.Author, rentPrice, tmpBefore, Credit);
+                    }
+                    else
+                    {
+                        StyleConsPrint.WriteCentered("Insufficient credits or invalid rent price.");
+                        Console.WriteLine("Press any key...");
+                        Console.ReadKey(true);
+                    }
+                    break;
+                case "3":
+                    BookHandler.BookService.PrintBookContent(selected);
+                    break;
+                default:
+                    break;
+            }
         }
 
         public void ReadBook()
         {
-            // Code to read book
+            // Show user's owned (purchased) and active rented books
+            var owned = BookHandler.BookService.GetUserOwnedBookInfos(this.ID);
+            if (owned == null || owned.Count == 0)
+            {
+                StyleConsPrint.WriteCentered("You have no purchased or active rented books.");
+                Console.WriteLine("Press any key to return...");
+                Console.ReadKey(true);
+                return;
+            }
+
+            Console.Clear();
+            StyleConsPrint.WriteCentered("Your Books (Purchased / Active Rented)");
+            BookHandler.BookService.PrintBooksTable(owned);
+            Console.WriteLine();
+            Console.Write("Select number to read (0 = cancel): ");
+            var input = Console.ReadLine() ?? "";
+            if (!int.TryParse(input, out var sel) || sel < 0 || sel > owned.Count)
+                return;
+            if (sel == 0) return;
+
+            var book = owned[sel - 1];
+            // display content
+            BookHandler.BookService.PrintBookContent(book);
         }
-        public void addCredit(float amount)
+
+        // interactive add credit: asks credit card number and amount, then updates DB
+        public void addCredit()
         {
-            Credit += amount;
+            try
+            {
+                Console.Clear();
+                StyleConsPrint.WriteCentered("Add Credits");
+                Console.Write("Enter card number (digits only): ");
+                var card = (Console.ReadLine() ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(card) || !card.All(char.IsDigit))
+                {
+                    StyleConsPrint.WriteCentered("Invalid card number. Operation cancelled.");
+                    Console.WriteLine("Press any key to return...");
+                    Console.ReadKey(true);
+                    return;
+                }
+
+                Console.Write("Enter amount to add: ");
+                var amtRaw = (Console.ReadLine() ?? string.Empty).Trim();
+                if (!decimal.TryParse(amtRaw, NumberStyles.Number, CultureInfo.InvariantCulture, out var amtDec) || amtDec <= 0)
+                {
+                    StyleConsPrint.WriteCentered("Invalid amount. Operation cancelled.");
+                    Console.WriteLine("Press any key to return...");
+                    Console.ReadKey(true);
+                    return;
+                }
+
+                float amt = (float)amtDec;
+
+                var before = Credit;
+                Credit += amt;
+
+                // persist
+                Admin.UpdateUserCredit(this.ID, Credit);
+
+                // show confirmation/receipt
+                PrintCenteredReceipt("Add Credits Receipt", $"(Card: ****{(card.Length>=4?card[^4..]:"")})", Username, amt, before, Credit);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error adding credits: {ex.Message}");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey(true);
+            }
         }
     }
 }
