@@ -24,6 +24,7 @@ namespace E_Library_Manager.Main.BookHandler
             StyleConsPrint.WriteCentered("2. Search Book by Title");
             StyleConsPrint.WriteCentered("3. Search Book by Author");
             StyleConsPrint.WriteCentered("4. Filter Books by Category");
+            StyleConsPrint.WriteCentered("5. Filter Books by Genre");
             StyleConsPrint.WriteCentered("Esc. Back to Book Menu");
         }
         public static void SelectBookCategoryMenu()
@@ -42,6 +43,7 @@ namespace E_Library_Manager.Main.BookHandler
             StyleConsPrint.WriteCentered("4. Engineering");
             StyleConsPrint.WriteCentered("5. Medical");
             StyleConsPrint.WriteCentered("6. Biography");
+            StyleConsPrint.WriteCentered("7. Science");
             StyleConsPrint.WriteCentered("Esc. Go Back");
         }
         public static void SelectBookGenreMenu()

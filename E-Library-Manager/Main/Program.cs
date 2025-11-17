@@ -367,15 +367,14 @@ namespace E_Library_Manager.Main
                     case ConsoleKey.D2:
                     case ConsoleKey.NumPad2:
                         Console.Clear();
-                        user.CheckoutBook();
+                        user.PurchaseBook();
                         Console.ReadKey(true);
                         break;
 
                     case ConsoleKey.D3:
                     case ConsoleKey.NumPad3:
                         Console.Clear();
-                        StyleConsPrint.WriteCentered("Return Book selected. (Not implemented)");
-                        Console.WriteLine("Press any key to return to User Menu...");
+                        user.RentBook();
                         Console.ReadKey(true);
                         break;
 

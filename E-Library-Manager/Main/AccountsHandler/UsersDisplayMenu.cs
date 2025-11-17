@@ -62,13 +62,14 @@ namespace E_Library_Manager.Main.AccountsHandler
         }
 
         //For User Menu
+        //Todo Features
         public static void UserMenu()
         {
             StyleConsPrint.WriteCentered("User Menu:");
             StyleConsPrint.WriteCentered("1. Read a Book");
             StyleConsPrint.WriteCentered("2. Purchase a Book");
             StyleConsPrint.WriteCentered("3. Rent a Book");
-            StyleConsPrint.WriteCentered("4. Display Info");
+            StyleConsPrint.WriteCentered("4. Display User Info");
             StyleConsPrint.WriteCentered("5. Contact staff");
             StyleConsPrint.WriteCentered("6. Add Credits");
             StyleConsPrint.WriteCentered("H. Help info for all options");

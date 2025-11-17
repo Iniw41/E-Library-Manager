@@ -80,12 +80,64 @@ namespace E_Library_Manager.Main.AccountsHandler
             return candidate;
         }
         
-        static string GetBorrowedDbPath()
+        static string GetPurchesedAndRentedDbPath()
         {
             var baseDir = AppContext.BaseDirectory;
-            var candidate = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "Database", "usersDB", "BorrowedDB.json"));
+            var candidate = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "Database", "usersDB", "PurchasedAndRentedDB.json"));
             return candidate;
         }
+
+        // Helper to update user's credit in UsersDB.txt
+        internal static void UpdateUserCredit(string userId, float newCredit)
+        {
+            try
+            {
+                var path = GetUserDBPath();
+                if (!File.Exists(path)) return;
+
+                var lines = File.ReadAllLines(path, Encoding.UTF8).ToList();
+                if (lines.Count == 0) return;
+
+                // Ensure header has Credit column
+                var header = lines[0];
+                if (header.IndexOf("ID", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    if (!header.Contains("Credit", StringComparison.OrdinalIgnoreCase))
+                    {
+                        header = header.TrimEnd() + ",Credit";
+                        lines[0] = header;
+                    }
+                }
+
+                // update matching user line
+                for (int i = 1; i < lines.Count; i++)
+                {
+                    var line = lines[i];
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+                    var tokens = line.Split(',').Select(t => t.Trim()).ToList();
+                    if (tokens.Count == 0) continue;
+                    if (tokens[0].Trim('"') == userId)
+                    {
+                        // make sure there are at least 7 tokens
+                        while (tokens.Count < 7) tokens.Add(string.Empty);
+                        tokens[6] = newCredit.ToString("0.##", CultureInfo.InvariantCulture);
+                        lines[i] = string.Join(",", tokens);
+                        File.WriteAllLines(path, lines, Encoding.UTF8);
+                        return;
+                    }
+                }
+
+                // If not found, append new user entry line with minimal fields (not ideal but safe)
+                var newLine = $"{userId},Unknown, , ,0,,{newCredit.ToString("0.##", CultureInfo.InvariantCulture)}";
+                lines.Add(newLine);
+                File.WriteAllLines(path, lines, Encoding.UTF8);
+            }
+            catch
+            {
+                // ignore errors here to avoid breaking purchase flow
+            }
+        }
+
         //-------------------------
         // Sorting Books (new)
         //-------------------------
@@ -156,10 +208,18 @@ namespace E_Library_Manager.Main.AccountsHandler
                         break;
                     case ConsoleKey.D4:
                     case ConsoleKey.NumPad4:
-                        chosen = "Math";
+                        chosen = "Engineering";
                         break;
                     case ConsoleKey.D5:
                     case ConsoleKey.NumPad5:
+                        chosen = "Medical";
+                        break;
+                    case ConsoleKey.D6:
+                    case ConsoleKey.NumPad6:
+                        chosen = "Biography";
+                        break;
+                    case ConsoleKey.D7:
+                    case ConsoleKey.NumPad7:
                         chosen = "Science";
                         break;
                     case ConsoleKey.Escape:
@@ -735,12 +795,15 @@ namespace E_Library_Manager.Main.AccountsHandler
 
             using (var sw = new StreamWriter(path, false, Encoding.UTF8))
             {
-                sw.WriteLine("ID,Username,Password,Fullname,Age,Email");
+                // include Credit column in header (backwards compatible)
+                sw.WriteLine("ID,Username,Password,Fullname,Age,Email,Credit");
                 foreach (var u in users)
                 {
                     var safeFullname = (u.Fullname ?? string.Empty).Replace(Environment.NewLine, " ").Replace(",", " ");
                     var safeEmail = (u.Email ?? string.Empty).Replace(",", "");
-                    sw.WriteLine($"{u.ID},{u.Username},{u.Password},{safeFullname},{u.Age},{safeEmail}");
+                    string credit = "0";
+                    if (u is StandardUser su) credit = su.Credit.ToString("0.##", CultureInfo.InvariantCulture);
+                    sw.WriteLine($"{u.ID},{u.Username},{u.Password},{safeFullname},{u.Age},{safeEmail},{credit}");
                 }
             }
         }
@@ -963,7 +1026,7 @@ namespace E_Library_Manager.Main.AccountsHandler
 
         internal static List<BorrowRecord> LoadBorrowedRecords()
         {
-            var path = GetBorrowedDbPath();
+            var path = GetPurchesedAndRentedDbPath();
             var list = new List<BorrowRecord>();
             if (!File.Exists(path))
                 return list;
@@ -1010,7 +1073,7 @@ namespace E_Library_Manager.Main.AccountsHandler
 
         internal static void SaveBorrowedRecords(IEnumerable<BorrowRecord> records)
         {
-            var path = GetBorrowedDbPath();
+            var path = GetPurchesedAndRentedDbPath();
             var dir = Path.GetDirectoryName(path) ?? AppContext.BaseDirectory;
             if (!Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
@@ -1684,185 +1747,280 @@ namespace E_Library_Manager.Main.AccountsHandler
             Console.ReadKey(true);
         }
 
-        public void CheckoutBook()
+        public void PurchaseBook()
         {
-            SelectingTheBookMainCategory();
-        }
-                
-        static (bool canceled, string input) ReadInputWithCancelForUser()
-        {
-            var sb = new StringBuilder();
-            while (true)
+            Console.Clear();
+            BooksDisplayMenu.ViewBookMenu();
+            var key = Console.ReadKey(true);
+
+            BookHandler.BookInfo selected = null;
+
+            switch (key.Key)
             {
-                var key = Console.ReadKey(intercept: true);
-                if (key.Key == ConsoleKey.Escape)
-                {
-                    Console.WriteLine();
-                    return (true, string.Empty);
-                }
-                if (key.Key == ConsoleKey.Enter)
-                {
-                    Console.WriteLine();
-                    return (false, sb.ToString());
-                }
-                if (key.Key == ConsoleKey.Backspace)
-                {
-                    if (sb.Length > 0)
-                    {
-                        sb.Length--;
-                        Console.Write("\b \b");
-                    }
-                    continue;
-                }
-                if (!char.IsControl(key.KeyChar))
-                {
-                    sb.Append(key.KeyChar);
-                    Console.Write(key.KeyChar);
-                }
+                case ConsoleKey.D1:
+                case ConsoleKey.NumPad1:
+                    // View all - use title selector (empty prefix lists all)
+                    selected = BookHandler.BookService.InteractiveSelectBookByTitle();
+                    break;
+                case ConsoleKey.D2:
+                case ConsoleKey.NumPad2:
+                    // search book by title
+                    selected = BookHandler.BookService.InteractiveSelectBookByTitle();
+                    break;
+                case ConsoleKey.D3:
+                case ConsoleKey.NumPad3:
+                    // search book by author
+                    selected = BookHandler.BookService.InteractiveSelectBookByAuthor();
+                    break;
+                case ConsoleKey.D4:
+                case ConsoleKey.NumPad4:
+                    // filter books by subcategory
+                    selected = BookHandler.BookService.InteractiveSelectBookBySubCategory();
+                    break;
+                case ConsoleKey.D5:
+                case ConsoleKey.NumPad5:
+                    // filter books by genre
+                    selected = BookHandler.BookService.InteractiveSelectBookByGenre();
+                    break;
+                case ConsoleKey.Escape:
+                    return;
+                default:
+                    return;
             }
-        }
 
-        public void SelectingTheBookMainCategory()
-        {
-            while (true)
+            if (selected == null) return;
+
+            // Price and confirmation
+            float price = selected.Book?.BuyPrice ?? 0f;
+            if (!float.TryParse(selected.BuyPriceString, NumberStyles.Any, CultureInfo.InvariantCulture, out var tmp)) price = selected.Book?.BuyPrice ?? 0f;
+
+            if (price <= 0)
             {
-                Console.Clear();
-                BooksDisplayMenu.SelectBookCategoryMenu();
-
-                var key = Console.ReadKey(true);
-                switch (key.Key)
-                {
-                    case ConsoleKey.D1:
-                    case ConsoleKey.NumPad1:
-                        SelectingBookGenre();
-                        break;
-                    case ConsoleKey.D2:
-                    case ConsoleKey.NumPad2:
-                        SelectingBookSubCategory();
-                        break;
-                    case ConsoleKey.Escape:
-                        return;
-
-                    default:
-                        break;
-                }
+                StyleConsPrint.WriteCentered("Selected book has invalid price. Cannot purchase.");
+                Console.WriteLine("Press any key to return...");
+                Console.ReadKey(true);
+                return;
             }
-        }
-        public void SelectingBookSubCategory()
-        {
-            while (true)
+
+            Console.Clear();
+            StyleConsPrint.WriteCentered("Purchase Confirmation");
+            Console.WriteLine($"Title : {selected.Title}");
+            Console.WriteLine($"Author: {selected.Author}");
+            Console.WriteLine($"Price : {price.ToString("0.00", CultureInfo.InvariantCulture)}");
+            Console.WriteLine($"Your Credits: {Credit.ToString("0.##", CultureInfo.InvariantCulture)}");
+            Console.WriteLine();
+            Console.Write("Confirm purchase? (Y/N): ");
+            var confirm = Console.ReadKey(true).Key;
+            if (confirm != ConsoleKey.Y)
             {
-                Console.Clear();
-                BooksDisplayMenu.SelectBookSubCategoryMenu();
-                var key = Console.ReadKey(true);
-                switch (key.Key)
-                {
-                    case ConsoleKey.D1:
-                    case ConsoleKey.NumPad1:
-                        //display the History SubCategory
-                        break;
-                    case ConsoleKey.D2:
-                    case ConsoleKey.NumPad2:
-                        //display the Politics SubCategory
-                        break;
-                    case ConsoleKey.D3:
-                    case ConsoleKey.NumPad3:
-                        //display the Philosophy SubCategory
-                        break;
-                    case ConsoleKey.D4:
-                    case ConsoleKey.NumPad4:
-                        //display the Math SubCategory
-                        break;
-                    case ConsoleKey.D5:
-                    case ConsoleKey.NumPad5:
-                        //display the Science SubCategory
-                        break;
-                    case ConsoleKey.Escape:
-                        return;
-
-                    default:
-                        break;
-                }
+                StyleConsPrint.WriteCentered("Purchase cancelled.");
+                Console.WriteLine("Press any key to return...");
+                Console.ReadKey(true);
+                return;
             }
+
+            if (Credit < price)
+            {
+                StyleConsPrint.WriteCentered("Insufficient credits for this purchase.");
+                Console.WriteLine("Press any key to return...");
+                Console.ReadKey(true);
+                return;
+            }
+
+            var before = Credit;
+            Credit -= price;
+
+            // persist credit to UsersDB
+            Admin.UpdateUserCredit(this.ID, Credit);
+
+            // record transaction
+            var rec = new BookHandler.TransactionRecord
+            {
+                UserId = this.ID,
+                Username = this.Username,
+                Title = selected.Title,
+                Author = selected.Author,
+                Action = "Purchase",
+                Price = price,
+                TimeUtc = DateTime.UtcNow
+            };
+            BookHandler.BookService.AddTransactionRecord(rec);
+
+            // print centered receipt
+            PrintCenteredReceipt("Purchase Receipt", selected.Title, selected.Author, price, before, Credit);
+
+            // done
         }
+
+        public void RentBook()
+        {
+            Console.Clear();
+            BooksDisplayMenu.ViewBookMenu();
+            var key = Console.ReadKey(true);
+
+            BookHandler.BookInfo selected = null;
+
+            switch (key.Key)
+            {
+                case ConsoleKey.D1:
+                case ConsoleKey.NumPad1:
+                    // View all - use title selector (empty prefix lists all)
+                    selected = BookHandler.BookService.InteractiveSelectBookByTitle();
+                    break;
+                case ConsoleKey.D2:
+                case ConsoleKey.NumPad2:
+                    // search book by title
+                    selected = BookHandler.BookService.InteractiveSelectBookByTitle();
+                    break;
+                case ConsoleKey.D3:
+                case ConsoleKey.NumPad3:
+                    // search book by author
+                    selected = BookHandler.BookService.InteractiveSelectBookByAuthor();
+                    break;
+                case ConsoleKey.D4:
+                case ConsoleKey.NumPad4:
+                    // filter books by subcategory
+                    selected = BookHandler.BookService.InteractiveSelectBookBySubCategory();
+                    break;
+                case ConsoleKey.D5:
+                case ConsoleKey.NumPad5:
+                    // filter books by genre
+                    selected = BookHandler.BookService.InteractiveSelectBookByGenre();
+                    break;
+                case ConsoleKey.Escape:
+                    return;
+                default:
+                    return;
+            }
+
+            if (selected == null) return;
+
+            float price = selected.Book?.RentPrice ?? 0f;
+            if (!float.TryParse(selected.RentPriceString, NumberStyles.Any, CultureInfo.InvariantCulture, out var tmp)) price = selected.Book?.RentPrice ?? 0f;
+
+            if (price <= 0)
+            {
+                StyleConsPrint.WriteCentered("Selected book has invalid rent price. Cannot rent.");
+                Console.WriteLine("Press any key to return...");
+                Console.ReadKey(true);
+                return;
+            }
+
+            Console.Clear();
+            StyleConsPrint.WriteCentered("Rent Confirmation");
+            Console.WriteLine($"Title : {selected.Title}");
+            Console.WriteLine($"Author: {selected.Author}");
+            Console.WriteLine($"Rent Price : {price.ToString("0.00", CultureInfo.InvariantCulture)}");
+            Console.WriteLine($"Your Credits: {Credit.ToString("0.##", CultureInfo.InvariantCulture)}");
+            Console.WriteLine();
+            Console.Write("Confirm rent? (Y/N): ");
+            var confirm = Console.ReadKey(true).Key;
+            if (confirm != ConsoleKey.Y)
+            {
+                StyleConsPrint.WriteCentered("Rent cancelled.");
+                Console.WriteLine("Press any key to return...");
+                Console.ReadKey(true);
+                return;
+            }
+
+            if (Credit < price)
+            {
+                StyleConsPrint.WriteCentered("Insufficient credits for this rent.");
+                Console.WriteLine("Press any key to return...");
+                Console.ReadKey(true);
+                return;
+            }
+
+            var before = Credit;
+            Credit -= price;
+
+            // persist credit to UsersDB
+            Admin.UpdateUserCredit(this.ID, Credit);
+
+            // record transaction
+            var rec = new BookHandler.TransactionRecord
+            {
+                UserId = this.ID,
+                Username = this.Username,
+                Title = selected.Title,
+                Author = selected.Author,
+                Action = "Rent",
+                Price = price,
+                TimeUtc = DateTime.UtcNow
+            };
+            BookHandler.BookService.AddTransactionRecord(rec);
+
+            // print centered receipt
+            PrintCenteredReceipt("Rent Receipt", selected.Title, selected.Author, price, before, Credit);
+
+            // done
+        }
+
+        // centers a small receipt table in the console
+        private void PrintCenteredReceipt(string heading, string title, string author, float price, float before, float after)
+        {
+            var lines = new List<string>();
+            lines.Add(heading);
+            lines.Add("");
+            lines.Add($"Title : {title}");
+            lines.Add($"Author: {author}");
+            lines.Add("");
+            lines.Add($"Price           : {price.ToString("0.00", CultureInfo.InvariantCulture)}");
+            lines.Add($"Credits (Before): {before.ToString("0.##", CultureInfo.InvariantCulture)}");
+            lines.Add($"Credits (After) : {after.ToString("0.##", CultureInfo.InvariantCulture)}");
+            lines.Add("");
+            lines.Add("Thank you!");
+
+            int width = lines.Max(l => l.Length) + 4; // padding
+            int height = lines.Count + 2; // top/bottom border
+
+            int consoleWidth = Math.Max(Console.WindowWidth, width + 2);
+            int consoleHeight = Math.Max(Console.WindowHeight, height + 2);
+
+            int left = Math.Max((consoleWidth - width) / 2, 0);
+            int top = Math.Max((consoleHeight - height) / 2, 0);
+
+            Console.Clear();
+            // build box lines
+            string topBorder = "+" + new string('-', width - 2) + "+";
+            string bottomBorder = topBorder;
+
+            // print top border
+            Console.SetCursorPosition(left, top);
+            Console.Write(topBorder);
+
+            // print content
+            for (int i = 0; i < lines.Count; i++)
+            {
+                Console.SetCursorPosition(left, top + 1 + i);
+                var content = lines[i].PadRight(width - 4);
+                Console.Write("| " + content + " |");
+            }
+
+            // print bottom border
+            Console.SetCursorPosition(left, top + 1 + lines.Count);
+            Console.Write(bottomBorder);
+
+            Console.SetCursorPosition(0, top + height + 1);
+            Console.WriteLine();
+            Console.WriteLine("Press any key to continue...");
+            Console.ReadKey(true);
+        }
+
         public void SelectingBookGenre()
         {
-            while (true)
-            {
-                Console.Clear();
-                BooksDisplayMenu.SelectBookGenreMenu();
-                var key = Console.ReadKey(true);
-                switch (key.Key)
-                {
-                    case ConsoleKey.D1:
-                    case ConsoleKey.NumPad1:
-                        //display the Fantasy Genre
-                        break;
-                    case ConsoleKey.D2:
-                    case ConsoleKey.NumPad2:
-                        //display the Science Fiction Genre
-                        break;
-                    case ConsoleKey.D3:
-                    case ConsoleKey.NumPad3:
-                        //display the Mystery Genre
-                        break;
-                    case ConsoleKey.D4:
-                    case ConsoleKey.NumPad4:
-                        //display the Romance Genre
-                        break;
-                    case ConsoleKey.D5:
-                    case ConsoleKey.NumPad5:
-                        //display the Horror Genre
-                        break;
-                    case ConsoleKey.D6:
-                    case ConsoleKey.NumPad6:
-                        //display the Historical Genre
-                        break;
-                    case ConsoleKey.D7:
-                    case ConsoleKey.NumPad7:
-                        //display the Dystopian Genre
-                        break;
-                    case ConsoleKey.D8:
-                    case ConsoleKey.NumPad8:
-                        //display the Adventure Genre
-                        break;
-                    case ConsoleKey.Escape:
-                        return;
-
-                    default:
-                        break;
-                }
-            }
+            // convenience: open genre filter then show results (non-purchasing)
+            BookHandler.BookService.InteractiveViewAllBooks();
         }
 
-        public void GoToBookMenu()
+        public void SelectBookSubCategory()
         {
-            // Code to go to book menu
+            BookHandler.BookService.InteractiveViewAllBooks();
         }
+
         public void ReadBook()
         {
             // Code to read book
-        }
-        public void ReturnBook()
-        {
-            // Not implemented here — you can implement UI to mark a borrowed record as returned (set ReturnedUtc).
-            // This is required to decrease the current borrowed count.
-        }
-        public void ViewBorrowedBooks()
-        {
-            // Code to view borrowed books
-        }
-        public void ViewBoookInfo()
-        {
-            // Code to view book information
-        }
-        public void ShowTopBorrowers()
-        {
-            // Code to show top borrowers
-        }
-        public void ShowTopBookCompleationists()
-        {
-            // Code to show top book completions
         }
         public void addCredit(float amount)
         {
