@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using E_Library_Manager.Main.AccountsHandler;
 using E_Library_Manager.Styles;
+using System.Globalization;
 
 namespace E_Library_Manager.Main
 {
@@ -363,8 +364,7 @@ namespace E_Library_Manager.Main
                     case ConsoleKey.D1:
                     case ConsoleKey.NumPad1:
                         Console.Clear();
-                        StyleConsPrint.WriteCentered("View Available Books selected. (Not implemented)");
-                        Console.WriteLine("Press any key to return to User Menu...");
+                        user.ReadBook();
                         Console.ReadKey(true);
                         break;
 
