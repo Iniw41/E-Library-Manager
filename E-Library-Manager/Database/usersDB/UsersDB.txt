@@ -8,4 +8,4 @@
 8,Kylon,9543,Brandon Uy,25,brandonuy@gmail.com,100
 9,Maevi,2301,Rachel Torres,22,racheltorres@gmail.com,100
 10,Rylen,4882,Justin Ramos,21,justinramos@gmail.com,100
-11,dad,120,dad user,40,dad@gmail.com,1000
+11,dad,120,dad user,40,dad@gmail.com,8600

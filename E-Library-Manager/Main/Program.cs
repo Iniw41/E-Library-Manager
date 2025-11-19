@@ -13,7 +13,6 @@ namespace E_Library_Manager.Main
     {
         static void Main(string[] args)
         {
-            StyleConsPrint.WriteCentered("E-Library Manager");
             mainmenu_selection();
         }
 
@@ -28,7 +27,12 @@ namespace E_Library_Manager.Main
             while (true)
             {
                 Console.Clear();
-                StyleConsPrint.WriteCentered("E-Library Manager");
+                StyleConsPrint.WriteCentered("██╗███╗   ██╗██╗██╗    ██╗    ██╗     ██╗██████╗ ");
+                StyleConsPrint.WriteCentered("██║████╗  ██║██║██║    ██║    ██║     ██║██╔══██╗");
+                StyleConsPrint.WriteCentered("██║██╔██╗ ██║██║██║ █╗ ██║    ██║     ██║██████╔╝");
+                StyleConsPrint.WriteCentered("██║██║╚██╗██║██║██║███╗██║    ██║     ██║██╔══██╗");
+                StyleConsPrint.WriteCentered("██║██║ ╚████║██║╚███╔███╔╝    ███████╗██║██████╔╝");
+                StyleConsPrint.WriteCentered("╚═╝╚═╝  ╚═══╝╚═╝ ╚══╝╚══╝     ╚══════╝╚═╝╚═════╝");
                 mainmenu_display_login();
 
                 var keypress = Console.ReadKey(true);

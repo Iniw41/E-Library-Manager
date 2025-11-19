@@ -54,13 +54,6 @@ namespace E_Library_Manager.Main.AccountsHandler
             StyleConsPrint.WriteCentered("Esc. Go Back");
         }
 
-        public static void ViewAllUsersMenu()
-        {
-            StyleConsPrint.WriteCentered("View All Users:");
-            StyleConsPrint.WriteCentered("ID | Username | Full Name | Age | Email | Status");
-            StyleConsPrint.WriteCentered("------------------------------------------------");
-        }
-
         //For User Menu
         //Todo Features
         public static void UserMenu()

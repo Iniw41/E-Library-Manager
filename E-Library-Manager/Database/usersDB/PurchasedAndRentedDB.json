@@ -20,5 +20,27 @@
     "TimeUtc": "2025-11-17T15:21:57.1092879Z",
     "ExpiresUtc": "2025-11-20T15:21:57.1092885Z",
     "IsActive": true
+  },
+  {
+    "UserId": "11",
+    "Username": "dad",
+    "Title": "Statisticians of the Centuries",
+    "Author": "Joseph Bertrand",
+    "Action": "Purchase",
+    "Price": 3200,
+    "TimeUtc": "2025-11-18T16:02:21.4587083Z",
+    "ExpiresUtc": null,
+    "IsActive": true
+  },
+  {
+    "UserId": "11",
+    "Username": "dad",
+    "Title": "Statisticians of the Centuries",
+    "Author": "Joseph Bertrand",
+    "Action": "Purchase",
+    "Price": 3200,
+    "TimeUtc": "2025-11-18T16:03:20.8702551Z",
+    "ExpiresUtc": null,
+    "IsActive": true
   }
 ]
